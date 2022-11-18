@@ -34,6 +34,32 @@ from nerfstudio.utils.misc import get_dict_to_torch
 CONSOLE = Console(width=120)
 
 
+def default_cachedataloader_collate(batch):
+    """Default collate function for the cached dataloader.
+
+    Args:
+        batch: Batch of samples from the dataset.
+
+    Returns:
+        Collated batch.
+    """
+    images = []
+    masks = []
+    for data in batch:
+        image = data.pop("image")
+        mask = data.pop("mask", None)
+        images.extend(image)
+        if mask:
+            masks.extend(mask)
+
+    batch: dict = nerfstudio_collate(batch)
+    batch["image"] = images
+    if masks:
+        batch["mask"] = masks
+
+    return batch
+
+
 class CacheDataloader(DataLoader):
     """Collated image dataset that implements caching of default-pytorch-collatable data.
     Creates batches of the InputDataset return type.
@@ -52,7 +78,7 @@ class CacheDataloader(DataLoader):
         num_images_to_sample_from: int = -1,
         num_times_to_repeat_images: int = -1,
         device: Union[torch.device, str] = "cpu",
-        collate_fn=nerfstudio_collate,
+        collate_fn=default_cachedataloader_collate,
         **kwargs,
     ):
         self.dataset = dataset

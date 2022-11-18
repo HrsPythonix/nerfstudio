@@ -15,53 +15,10 @@
 """
 Code for sampling pixels.
 """
-
 import random
 from typing import Dict
 
 import torch
-
-from nerfstudio.utils.images import BasicImages
-
-
-def collate_image_dataset_batch(batch: Dict, num_rays_per_batch: int, keep_full_image: bool = False):
-    """
-    Operates on a batch of images and samples pixels to use for generating rays.
-    Returns a collated batch which is input to the Graph.
-    It will sample only within the valid 'mask' if it's specified.
-
-    Args:
-        batch: batch of images to sample from
-        num_rays_per_batch: number of rays to sample per batch
-        keep_full_image: whether or not to include a reference to the full image in returned batch
-    """
-    device = batch["image"].device
-    num_images, image_height, image_width, _ = batch["image"].shape
-
-    # only sample within the mask, if the mask is in the batch
-    if "mask" in batch:
-        nonzero_indices = torch.nonzero(batch["mask"][..., 0], as_tuple=False)
-        chosen_indices = random.sample(range(len(nonzero_indices)), k=num_rays_per_batch)
-        indices = nonzero_indices[chosen_indices]
-    else:
-        indices = torch.floor(
-            torch.rand((num_rays_per_batch, 3), device=device)
-            * torch.tensor([num_images, image_height, image_width], device=device)
-        ).long()
-
-    c, y, x = (i.flatten() for i in torch.split(indices, 1, dim=-1))
-    collated_batch = {key: value[c, y, x] for key, value in batch.items() if key != "image_idx" and value is not None}
-
-    assert collated_batch["image"].shape == (num_rays_per_batch, 3), collated_batch["image"].shape
-
-    # Needed to correct the random indices to their actual camera idx locations.
-    indices[:, 0] = batch["image_idx"][c]
-    collated_batch["indices"] = indices  # with the abs camera indices
-
-    if keep_full_image:
-        collated_batch["full_image"] = batch["image"]
-
-    return collated_batch
 
 
 def collate_image_dataset_batch_list(batch: Dict, num_rays_per_batch: int, keep_full_image: bool = False):
@@ -78,7 +35,6 @@ def collate_image_dataset_batch_list(batch: Dict, num_rays_per_batch: int, keep_
         num_rays_per_batch: number of rays to sample per batch
         keep_full_image: whether or not to include a reference to the full image in returned batch
     """
-
     device = batch["image"][0].device
     num_images = len(batch["image"])
 
@@ -161,18 +117,8 @@ class PixelSampler:  # pylint: disable=too-few-public-methods
         Args:
             image_batch: batch of images to sample from
         """
-        if isinstance(image_batch["image"], BasicImages):
-            image_batch = dict(image_batch.items())  # copy the dictioary so we don't modify the original
-            image_batch["image"] = image_batch["image"].images
-            if "mask" in image_batch:
-                image_batch["mask"] = image_batch["mask"].images
-            pixel_batch = collate_image_dataset_batch_list(
-                image_batch, self.num_rays_per_batch, keep_full_image=self.keep_full_image
-            )
-        elif isinstance(image_batch["image"], torch.Tensor):
-            pixel_batch = collate_image_dataset_batch(
-                image_batch, self.num_rays_per_batch, keep_full_image=self.keep_full_image
-            )
-        else:
-            raise ValueError("image_batch['image'] must be a BasicImages or torch.Tensor")
+        image_batch = dict(image_batch.items())  # copy the dictioary so we don't modify the original
+        pixel_batch = collate_image_dataset_batch_list(
+            image_batch, self.num_rays_per_batch, keep_full_image=self.keep_full_image
+        )
         return pixel_batch
