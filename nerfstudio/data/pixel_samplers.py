@@ -20,6 +20,8 @@ from typing import Dict
 
 import torch
 
+import nerfstudio.utils.profiler as profiler
+
 
 def collate_image_dataset_batch_list(batch: Dict, num_rays_per_batch: int, keep_full_image: bool = False):
     """
@@ -39,34 +41,38 @@ def collate_image_dataset_batch_list(batch: Dict, num_rays_per_batch: int, keep_
     num_images = len(batch["image"])
 
     # only sample within the mask, if the mask is in the batch
-    all_indices = []
-    all_images = []
 
     if "mask" in batch:
-        num_rays_in_batch = num_rays_per_batch // num_images
-        for i in range(num_images):
-            if i == num_images - 1:
-                num_rays_in_batch = num_rays_per_batch - (num_images - 1) * num_rays_in_batch
-            nonzero_indices = torch.nonzero(batch["mask"][i][..., 0], as_tuple=False)
+
+        def sample_image_mask(mask, img, num_rays_in_batch, idx):
+            nonzero_indices = torch.nonzero(mask, as_tuple=False)
             chosen_indices = random.sample(range(len(nonzero_indices)), k=num_rays_in_batch)
             indices = nonzero_indices[chosen_indices]
-            indices = torch.cat([torch.full((num_rays_in_batch, 1), i, device=device), indices], dim=-1)
-            all_indices.append(indices)
-            all_images.append(batch["image"][i][indices[:, 1], indices[:, 2]])
+            indices = torch.cat([torch.full((num_rays_in_batch, 1), idx, device=device), indices], dim=-1)
+            return indices, img[indices[:, 1], indices[:, 2]]
+
+        num_rays = [num_rays_per_batch // num_images] * (num_images - 1)
+        num_rays.append(num_rays_per_batch - (num_images - 1) * (num_rays_per_batch // num_images))
+        outs = list(map(sample_image_mask, batch["mask"], batch["image"], num_rays, range(num_images)))
+        all_indices = [out[0] for out in outs]
+        all_images = [out[1] for out in outs]
 
     else:
-        num_rays_in_batch = num_rays_per_batch // num_images
-        for i in range(num_images):
-            image_height, image_width, _ = batch["image"][i].shape
-            if i == num_images - 1:
-                num_rays_in_batch = num_rays_per_batch - (num_images - 1) * num_rays_in_batch
+
+        def sample_image(img, num_rays_in_batch, idx):
+            image_height, image_width, _ = img.shape
             indices = torch.floor(
                 torch.rand((num_rays_in_batch, 3), device=device)
                 * torch.tensor([1, image_height, image_width], device=device)
             ).long()
-            indices[:, 0] = i
-            all_indices.append(indices)
-            all_images.append(batch["image"][i][indices[:, 1], indices[:, 2]])
+            indices[:, 0] = idx
+            return indices, img[indices[:, 1], indices[:, 2]]
+
+        num_rays = [num_rays_per_batch // num_images] * (num_images - 1)
+        num_rays.append(num_rays_per_batch - (num_images - 1) * (num_rays_per_batch // num_images))
+        outs = list(map(sample_image, batch["image"], num_rays, range(num_images)))
+        all_indices = [out[0] for out in outs]
+        all_images = [out[1] for out in outs]
 
     indices = torch.cat(all_indices, dim=0)
 
@@ -111,6 +117,7 @@ class PixelSampler:  # pylint: disable=too-few-public-methods
         """
         self.num_rays_per_batch = num_rays_per_batch
 
+    @profiler.time_function
     def sample(self, image_batch: Dict):
         """Sample an image batch and return a pixel batch.
 
