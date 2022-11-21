@@ -107,15 +107,24 @@ def get_circle_path(
     steps: int = 120,
     radius: float = 0.6,
     up_vec: Optional[torch.tensor] = None,
+    height: Optional[float] = None,
+    render_width: Optional[int] = None,
+    render_height: Optional[int] = None,
 ) -> Cameras:
     if center is None:
         center = torch.tensor([0.0, 0.0, 0.0], device=camera.device)
     if up_vec is None:
         up_vec = torch.tensor([0.0, 0.0, 1.0], device=camera.device)
+    if height is None:
+        height = 0.0
+    if render_width is None:
+        render_width = torch.Tensor([1920], device=camera.device)
+    if render_height is None:
+        render_height = torch.Tensor([1080], device=camera.device)
 
     c2whs = []
     for theta in torch.linspace(0.0, 2.0 * torch.pi, steps + 1)[:-1]:
-        camera_pos = torch.tensor([torch.cos(theta), torch.sin(theta), 0.0], device=camera.device) * radius
+        camera_pos = torch.tensor([torch.cos(theta), torch.sin(theta), height], device=camera.device) * radius
         lookat = camera_pos - center
         c2w = camera_utils.viewmatrix(lookat, up_vec, camera_pos)
         c2wh = pose_utils.to4x4(c2w)
