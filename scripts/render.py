@@ -24,7 +24,7 @@ from rich.progress import (
 )
 from typing_extensions import Literal, assert_never
 
-from nerfstudio.cameras.camera_paths import get_path_from_json, get_spiral_path
+from nerfstudio.cameras.camera_paths import get_path_from_json, get_spiral_path, get_circle_path
 from nerfstudio.cameras.cameras import Cameras
 from nerfstudio.configs.base_config import Config  # pylint: disable=unused-import
 from nerfstudio.pipelines.base_pipeline import Pipeline
@@ -108,7 +108,7 @@ class RenderTrajectory:
     # Name of the renderer outputs to use. rgb, depth, etc. concatenates them along y axis
     rendered_output_names: List[str] = field(default_factory=lambda: ["rgb"])
     #  Trajectory to render.
-    traj: Literal["spiral", "filename"] = "spiral"
+    traj: Literal["spiral", "circle", "filename"] = "spiral"
     # Scaling factor to apply to the camera image resolution.
     downscale_factor: int = 1
     # Filename of the camera path to render.
@@ -139,6 +139,9 @@ class RenderTrajectory:
             camera_start = pipeline.datamanager.eval_dataloader.get_camera(image_idx=0)
             # TODO(ethan): pass in the up direction of the camera
             camera_path = get_spiral_path(camera_start, steps=30, radius=0.1)
+        elif self.traj == "circle":
+            camera_start = pipeline.datamanager.eval_dataloader.get_camera(image_idx=0)
+            camera_path = get_circle_path(camera_start)
         elif self.traj == "filename":
             with open(self.camera_path_filename, "r", encoding="utf-8") as f:
                 camera_path = json.load(f)
