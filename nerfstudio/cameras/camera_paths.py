@@ -111,7 +111,7 @@ def get_circle_path(
     if center is None:
         center = torch.tensor([0.0, 0.0, 0.0], device=camera.device)
     if up_vec is None:
-        up_vec = torch.tensor([0.0, 1.0, 0.0], device=camera.device)
+        up_vec = torch.tensor([0.0, 0.0, 1.0], device=camera.device)
     up = up_vec
     focal = torch.min(camera.fx[0], camera.fy[0])
     target = torch.tensor([0, 0, -focal], device=camera.device)  # camera looking in -z direction
