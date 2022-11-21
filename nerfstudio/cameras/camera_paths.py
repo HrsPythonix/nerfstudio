@@ -103,10 +103,10 @@ def get_spiral_path(
 
 def get_circle_path(
     camera: Cameras,
-    center: torch.tensor = torch.tensor(0.0, 0.0, 0.0),
+    center: torch.tensor = torch.tensor([0.0, 0.0, 0.0]),
     steps: int = 30,
     radius: float = 0.5,
-    up_vec: torch.tensor = torch.tensor(0.0, 0.0, 1.0),
+    up_vec: torch.tensor = torch.tensor([0.0, 0.0, 1.0]),
 ) -> Cameras:
     up = up_vec
     focal = torch.min(camera.fx[0], camera.fy[0])
