@@ -122,13 +122,13 @@ class RenderTrajectory:
     # Specifies number of rays per chunk during eval.
     eval_num_rays_per_chunk: Optional[int] = None
     # camera circle center
-    circle_center: List[float] = None
+    circle_center: Optional[List[float]] = None
     # camera circle radius 
     circle_radius: Optional[float] = None
     # camera circle height 
     circle_height: Optional[float] = None
     # camera circle up vector
-    circle_up_vec: List[float] = None
+    circle_up_vec: Optional[List[float]] = None
     # fps for output video
     fps: Optional[int] = None
     # output video resolution width
