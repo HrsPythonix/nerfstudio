@@ -76,7 +76,7 @@ def get_spiral_path(
     else:
         raise ValueError("Only one of radius or radiuses must be specified.")
 
-    up = torch.tensor([0.0, 0.0, 1.0])  # scene is z up
+    up = torch.tensor([0.0, 0.0, 1.0], device=camera.device)  # scene is z up
     focal = torch.min(camera.fx[0], camera.fy[0])
     target = torch.tensor([0, 0, -focal], device=camera.device)  # camera looking in -z direction
 
@@ -103,11 +103,15 @@ def get_spiral_path(
 
 def get_circle_path(
     camera: Cameras,
-    center: torch.tensor = torch.tensor([0.0, 0.0, 0.0]),
+    center: Optional[torch.tensor] = None,
     steps: int = 30,
     radius: float = 0.5,
-    up_vec: torch.tensor = torch.tensor([0.0, 0.0, 1.0]),
+    up_vec: Optional[torch.tensor] = None,
 ) -> Cameras:
+    if center is None:
+        center = torch.tensor([0.0, 0.0, 0.0], device=camera.device)
+    if up_vec is None:
+        up_vec = torch.tensor([0.0, 0.0, 0.0], device=camera.device)
     up = up_vec
     focal = torch.min(camera.fx[0], camera.fy[0])
     target = torch.tensor([0, 0, -focal], device=camera.device)  # camera looking in -z direction
