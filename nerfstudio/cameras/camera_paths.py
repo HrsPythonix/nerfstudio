@@ -118,9 +118,9 @@ def get_circle_path(
     if height is None:
         height = 0.0
     if render_width is None:
-        render_width = torch.Tensor([1920], device=camera.device)
+        render_width = torch.tensor([1920], device=camera.device)
     if render_height is None:
-        render_height = torch.Tensor([1080], device=camera.device)
+        render_height = torch.tensor([1080], device=camera.device)
 
     c2whs = []
     for theta in torch.linspace(0.0, 2.0 * torch.pi, steps + 1)[:-1]:
