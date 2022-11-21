@@ -8,7 +8,7 @@ import json
 import sys
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import List, Optional
+from typing import List, Optional, Tuple
 
 import mediapy as media
 import numpy as np
