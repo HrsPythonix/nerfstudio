@@ -155,10 +155,10 @@ class RenderTrajectory:
             camera_path = get_spiral_path(camera_start, steps=30, radius=0.1)
         elif self.traj == "circle":
             val_camera = pipeline.datamanager.eval_dataloader.get_camera(image_idx=0)
-            circle_center = torch.tensor(circle_center, device=val_camera.device) if self.circle_center else None
-            circle_up_vec = torch.tensor(circle_up_vec, device=val_camera.device) if self.circle_up_vec else None
-            render_width = torch.tensor(render_width, device=val_camera.device) if self.render_width else None
-            render_height = torch.tensor(render_height, device=val_camera.device) if self.render_height else None
+            circle_center = torch.tensor(self.circle_center, device=val_camera.device) if self.circle_center else None
+            circle_up_vec = torch.tensor(self.circle_up_vec, device=val_camera.device) if self.circle_up_vec else None
+            render_width = torch.tensor(self.render_width, device=val_camera.device) if self.render_width else None
+            render_height = torch.tensor(self.render_height, device=val_camera.device) if self.render_height else None
             camera_path = get_circle_path(val_camera, circle_center, self.fps * seconds, self.circle_radius, circle_up_vec, self.circle_height, render_width, render_height)
         elif self.traj == "filename":
             with open(self.camera_path_filename, "r", encoding="utf-8") as f:
