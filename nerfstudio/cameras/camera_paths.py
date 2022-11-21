@@ -108,8 +108,8 @@ def get_circle_path(
     radius: float = 0.6,
     up_vec: Optional[torch.tensor] = None,
     height: Optional[float] = None,
-    render_width: Optional[int] = None,
-    render_height: Optional[int] = None,
+    render_width: Optional[torch.tensor] = None,
+    render_height: Optional[torch.tensor] = None,
 ) -> Cameras:
     if center is None:
         center = torch.tensor([0.0, 0.0, 0.0], device=camera.device)
@@ -130,7 +130,7 @@ def get_circle_path(
         c2wh = pose_utils.to4x4(c2w)
         c2whs.append(c2wh[:3, :4])
     c2whs = torch.stack(c2whs, dim=0)
-    return Cameras(fx=camera.fx[0], fy=camera.fy[0], cx=camera.cx[0], cy=camera.cy[0], camera_to_worlds=c2whs)
+    return Cameras(fx=camera.fx[0], fy=camera.fy[0], cx=render_width, cy=render_height, camera_to_worlds=c2whs)
 
 def get_path_from_json(camera_path: Dict[str, Any]) -> Cameras:
     """Takes a camera path dictionary and returns a trajectory as a Camera instance.
