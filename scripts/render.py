@@ -159,7 +159,8 @@ class RenderTrajectory:
             circle_up_vec = torch.tensor(self.circle_up_vec, device=val_camera.device) if self.circle_up_vec else None
             render_width = torch.tensor(self.render_width, device=val_camera.device) if self.render_width else None
             render_height = torch.tensor(self.render_height, device=val_camera.device) if self.render_height else None
-            camera_path = get_circle_path(val_camera, circle_center, self.fps * seconds, self.circle_radius, circle_up_vec, self.circle_height, render_width, render_height)
+            frame_num = int(self.fps * seconds)
+            camera_path = get_circle_path(val_camera, circle_center, frame_num, self.circle_radius, circle_up_vec, self.circle_height, render_width, render_height)
         elif self.traj == "filename":
             with open(self.camera_path_filename, "r", encoding="utf-8") as f:
                 camera_path = json.load(f)
