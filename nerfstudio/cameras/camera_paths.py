@@ -76,7 +76,7 @@ def get_spiral_path(
     else:
         raise ValueError("Only one of radius or radiuses must be specified.")
 
-    up = torch.tensor([0.0, 1.0, 0.0], device=camera.device)  # scene is z up
+    up = camera.camera_to_worlds[0, :3, 2]  # scene is z up
     focal = torch.min(camera.fx[0], camera.fy[0])
     target = torch.tensor([0, 0, -focal], device=camera.device)  # camera looking in -z direction
 
@@ -104,23 +104,20 @@ def get_spiral_path(
 def get_circle_path(
     camera: Cameras,
     center: Optional[torch.tensor] = None,
-    steps: int = 30,
-    radius: float = 0.5,
+    steps: int = 120,
+    radius: float = 0.6,
     up_vec: Optional[torch.tensor] = None,
 ) -> Cameras:
     if center is None:
         center = torch.tensor([0.0, 0.0, 0.0], device=camera.device)
     if up_vec is None:
         up_vec = torch.tensor([0.0, 0.0, 1.0], device=camera.device)
-    up = up_vec
-    focal = torch.min(camera.fx[0], camera.fy[0])
-    target = torch.tensor([0, 0, -focal], device=camera.device)  # camera looking in -z direction
 
     c2whs = []
     for theta in torch.linspace(0.0, 2.0 * torch.pi, steps + 1)[:-1]:
         camera_pos = torch.tensor([torch.cos(theta), torch.sin(theta), 0.0], device=camera.device) * radius
         lookat = camera_pos - center
-        c2w = camera_utils.viewmatrix(lookat, up, camera_pos)
+        c2w = camera_utils.viewmatrix(lookat, up_vec, camera_pos)
         c2wh = pose_utils.to4x4(c2w)
         c2whs.append(c2wh[:3, :4])
     c2whs = torch.stack(c2whs, dim=0)
