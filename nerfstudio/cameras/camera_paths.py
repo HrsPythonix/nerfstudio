@@ -78,7 +78,7 @@ def get_spiral_path(
 
     up = torch.tensor([0.0, 1.0, 0.0], device=camera.device)  # scene is z up
     focal = torch.min(camera.fx[0], camera.fy[0])
-    target = torch.tensor([0.5, 0.5, 0.5], device=camera.device)  # camera looking in -z direction
+    target = torch.tensor([0, 0, -focal], device=camera.device)  # camera looking in -z direction
 
     c2w = camera.camera_to_worlds[0]
     c2wh_global = pose_utils.to4x4(c2w)
@@ -109,7 +109,7 @@ def get_circle_path(
     up_vec: Optional[torch.tensor] = None,
 ) -> Cameras:
     if center is None:
-        center = torch.tensor([0.5, 0.5, 0.5], device=camera.device)
+        center = torch.tensor([0.0, 0.0, 0.0], device=camera.device)
     if up_vec is None:
         up_vec = torch.tensor([0.0, 1.0, 0.0], device=camera.device)
     up = up_vec
