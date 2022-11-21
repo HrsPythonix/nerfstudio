@@ -127,7 +127,7 @@ class RenderTrajectory:
         _, pipeline, _ = eval_setup(
             self.load_config,
             eval_num_rays_per_chunk=self.eval_num_rays_per_chunk,
-            test_mode="test" if self.traj == "spiral" else "inference",
+            test_mode="test" if self.traj == "spiral" or "circle" else "inference",
         )
 
         install_checks.check_ffmpeg_installed()
