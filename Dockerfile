@@ -79,26 +79,26 @@ RUN chown -R user:user /home/user/nerfstudio
 USER 1000:1000
 
 # Install Ceres-solver (required by colmap).
-RUN cd nerfstudio/third-party/ceres-solver-2.1.0 && \
-    mkdir build && \
-    cd build && \
-    cmake .. -DBUILD_TESTING=OFF -DBUILD_EXAMPLES=OFF && \
-    make -j && \
-    make install && \
-    cd .. && \
-    rm -r build && \
-    cd ../../..
+# RUN cd nerfstudio/third-party/ceres-solver-2.1.0 && \
+#     mkdir build && \
+#     cd build && \
+#     cmake .. -DBUILD_TESTING=OFF -DBUILD_EXAMPLES=OFF && \
+#     make -j && \
+#     make install && \
+#     cd .. && \
+#     rm -r build && \
+#     cd ../../..
     
-# Install colmap.
-RUN git clone --branch 3.7 https://github.com/colmap/colmap.git --single-branch && \
-    cd colmap && \
-    mkdir build && \
-    cd build && \
-    cmake .. && \
-    make -j && \
-    make install && \
-    cd ../.. && \
-    rm -r colmap
+# # Install colmap.
+# RUN git clone --branch 3.7 https://github.com/colmap/colmap.git --single-branch && \
+#     cd colmap && \
+#     mkdir build && \
+#     cd build && \
+#     cmake .. && \
+#     make -j && \
+#     make install && \
+#     cd ../.. && \
+#     rm -r colmap
 
 # Install nerfstudio dependencies.
 RUN cd nerfstudio && \
