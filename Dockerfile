@@ -102,7 +102,7 @@ USER 1000:1000
 
 # Install nerfstudio dependencies.
 RUN cd nerfstudio && \
-    python3.8 -m pip install -e . && \
+    python3.8 -m pip install -i https://pypi.tuna.tsinghua.edu.cn/simple -e . && \
     cd ..
 
 # Change working directory
