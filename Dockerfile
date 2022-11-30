@@ -55,17 +55,14 @@ RUN git clone --branch v0.6.0 https://github.com/google/glog.git --single-branch
 ENV LD_LIBRARY_PATH="${LD_LIBRARY_PATH}:/usr/local/lib"
 
 # Install Ceres-solver (required by colmap).
-RUN git clone --branch 2.1.0 https://ceres-solver.googlesource.com/ceres-solver.git --single-branch && \
-    cd ceres-solver && \
-    git checkout $(git describe --tags) && \
+RUN cd third-party/ceres-solver && \
     mkdir build && \
     cd build && \
     cmake .. -DBUILD_TESTING=OFF -DBUILD_EXAMPLES=OFF && \
     make -j && \
     make install && \
-    cd ../.. && \
-    rm -r ceres-solver
-
+    cd ../../../
+    
 # Install colmap.
 RUN git clone --branch 3.7 https://github.com/colmap/colmap.git --single-branch && \
     cd colmap && \
