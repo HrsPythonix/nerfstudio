@@ -79,7 +79,7 @@ RUN chown -R user:user /home/user/nerfstudio
 USER 1000:1000
 
 # Install Ceres-solver (required by colmap).
-RUN cd nerfstudio/third-party/ceres-solver && \
+RUN cd nerfstudio/third-party/ceres-solver-2.1.0 && \
     mkdir build && \
     cd build && \
     cmake .. -DBUILD_TESTING=OFF -DBUILD_EXAMPLES=OFF && \
