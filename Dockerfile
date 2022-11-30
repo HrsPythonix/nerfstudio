@@ -85,7 +85,9 @@ RUN cd nerfstudio/third-party/ceres-solver && \
     cmake .. -DBUILD_TESTING=OFF -DBUILD_EXAMPLES=OFF && \
     make -j && \
     make install && \
-    cd ../../../..
+    cd .. && \
+    rm -r build && \
+    cd ../../..
     
 # Install colmap.
 RUN git clone --branch 3.7 https://github.com/colmap/colmap.git --single-branch && \
