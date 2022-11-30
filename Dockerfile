@@ -53,26 +53,6 @@ RUN git clone --branch v0.6.0 https://github.com/google/glog.git --single-branch
     rm -r glog
 # Add glog path to LD_LIBRARY_PATH.
 ENV LD_LIBRARY_PATH="${LD_LIBRARY_PATH}:/usr/local/lib"
-
-# Install Ceres-solver (required by colmap).
-RUN cd third-party/ceres-solver && \
-    mkdir build && \
-    cd build && \
-    cmake .. -DBUILD_TESTING=OFF -DBUILD_EXAMPLES=OFF && \
-    make -j && \
-    make install && \
-    cd ../../../
-    
-# Install colmap.
-RUN git clone --branch 3.7 https://github.com/colmap/colmap.git --single-branch && \
-    cd colmap && \
-    mkdir build && \
-    cd build && \
-    cmake .. && \
-    make -j && \
-    make install && \
-    cd ../.. && \
-    rm -r colmap
     
 # Create non root user and setup environment.
 RUN useradd -m -d /home/user -u 1000 user
@@ -97,6 +77,26 @@ ADD . /home/user/nerfstudio
 USER root
 RUN chown -R user:user /home/user/nerfstudio
 USER 1000:1000
+
+# Install Ceres-solver (required by colmap).
+RUN cd nerfstudio/third-party/ceres-solver && \
+    mkdir build && \
+    cd build && \
+    cmake .. -DBUILD_TESTING=OFF -DBUILD_EXAMPLES=OFF && \
+    make -j && \
+    make install && \
+    cd ../../../..
+    
+# Install colmap.
+RUN git clone --branch 3.7 https://github.com/colmap/colmap.git --single-branch && \
+    cd colmap && \
+    mkdir build && \
+    cd build && \
+    cmake .. && \
+    make -j && \
+    make install && \
+    cd ../.. && \
+    rm -r colmap
 
 # Install nerfstudio dependencies.
 RUN cd nerfstudio && \
