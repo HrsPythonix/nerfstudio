@@ -117,10 +117,10 @@ def get_task_path(
     render_height: int,
     fov: float
 ) -> Cameras:
-    fovx = np.deg2rad(fov)
+    fovx = math.radians(fov)
     cx = render_width // 2
     cy = render_height // 2
-    fx = cx / np.tan(fovx / 2)
+    fx = cx / math.tan(fovx / 2)
     fy = fx
 
     up_vec = torch.tensor([0.0, 0.0, 1.0], device=camera.device)
