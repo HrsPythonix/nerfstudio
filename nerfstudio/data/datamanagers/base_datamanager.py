@@ -314,8 +314,12 @@ class VanillaDataManager(DataManager):  # pylint: disable=abstract-method
         self.test_split = "test" if test_mode in ["test", "inference"] else "val"
         self.dataparser = self.config.dataparser.setup()
 
-        self.train_dataset = self.create_train_dataset()
-        self.eval_dataset = self.create_eval_dataset()
+        if test_mode == 'test':
+            self.train_dataset = None
+            self.eval_dataset = None
+        else:
+            self.train_dataset = self.create_train_dataset()
+            self.eval_dataset = self.create_eval_dataset()
         super().__init__()
 
     def create_train_dataset(self) -> InputDataset:
