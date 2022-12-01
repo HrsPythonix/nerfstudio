@@ -11,6 +11,7 @@ import sys
 from dataclasses import dataclass, field
 from pathlib import Path
 import time
+import traceback
 from typing import List, Optional, Tuple
 
 import mediapy as media
@@ -173,7 +174,8 @@ def start_server(pipeline: Pipeline, task_dir:str, log_path:str, query_interval:
                 cameras, save_list = parse_task_json(task_list[0], pipeline)
                 CONSOLE.print("Task %s json parsed!"%(os.path.basename(task_list[0])))
             except Exception as e:
-                print(str(e))
+                traceback.print_exc()
+                print(e)
                 CONSOLE.print("Task %s json parse failed!"%(os.path.basename(task_list[0])))
                 continue
             
@@ -190,7 +192,8 @@ def start_server(pipeline: Pipeline, task_dir:str, log_path:str, query_interval:
                     render_task(cameras, save_list, pipeline, rendered_output_names)
                     CONSOLE.print("Task %s rendered!"%(os.path.basename(task_list[0])))
                 except Exception as e:
-                    print(str(e))
+                    traceback.print_exc()
+                    print(e)
                     continue
                 
             with open(log_path, 'w') as f:
