@@ -19,7 +19,7 @@ Code for camera paths.
 from typing import Any, Dict, Optional, Tuple
 
 import torch
-import numpy as np
+import math
 
 import nerfstudio.utils.poses as pose_utils
 from nerfstudio.cameras import camera_utils
@@ -129,9 +129,9 @@ def get_task_path(
     for pos, rot in zip(cam_positions, cam_rotations):
         camera_pos = torch.tensor(pos, device=camera.device)
         # lookat = camera_pos - center
-        lookat = [-np.cos(cam_rotations[0]) * np.sin(cam_rotations[1]),
-                  -np.cos(cam_rotations[0]) * np.cos(cam_rotations[1]),
-                  -np.sin(cam_rotations[0])]
+        lookat = [-math.cos(cam_rotations[0]) * math.sin(cam_rotations[1]),
+                  -math.cos(cam_rotations[0]) * math.cos(cam_rotations[1]),
+                  -math.sin(cam_rotations[0])]
         lookat = torch.tensor(lookat, device=camera.device, dtype=torch.float)
         c2w = camera_utils.viewmatrix(lookat, up_vec, camera_pos)
         c2wh = pose_utils.to4x4(c2w)
