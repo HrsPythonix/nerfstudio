@@ -146,7 +146,7 @@ def parse_task_json(task_json_path:str, pipeline: Pipeline):
         capture_position_list = []
         capture_rotation_list = []
         capture_save_list = []
-        for cap in task['CaptureSetting']['CapturePosInfo']:
+        for cap in task['CapturePosInfo']:
             capture_save_list.append(os.path.join(root_path, cap['SavePath']))
             capture_position_list.append(UE_coord_to_NeRF(cap['SavePath']['Loc']['X'], 
                                                           cap['SavePath']['Loc']['Y'], 
@@ -175,6 +175,7 @@ def start_server(pipeline: Pipeline, task_dir:str, log_path:str, query_interval:
             except Exception as e:
                 print(e)
                 CONSOLE.print("Task %s json parse failed!"%(os.path.basename(task_list[0])))
+                continue
             
             if remove_after_parse:
                 os.remove(task_list[0])
@@ -190,6 +191,7 @@ def start_server(pipeline: Pipeline, task_dir:str, log_path:str, query_interval:
                     CONSOLE.print("Task %s rendered!"%(os.path.basename(task_list[0])))
                 except Exception as e:
                     print(e)
+                    continue
                 
             with open(log_path, 'w') as f:
                 f.write("done, %s"%(os.path.basename(task_list[0])))
