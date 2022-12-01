@@ -148,10 +148,10 @@ def parse_task_json(task_json_path:str, pipeline: Pipeline):
         capture_save_list = []
         for cap in task['CapturePosInfo']:
             capture_save_list.append(os.path.join(root_path, cap['SavePath']))
-            capture_position_list.append(UE_coord_to_NeRF(cap['Loc']['X'], 
-                                                          cap['Loc']['Y'], 
-                                                          cap['Loc']['Z']))
-            capture_rotation_list.append([cap['Rot']['Pitch'], cap['Rot']['Yaw'], cap['Rot']['Roll']])
+            capture_position_list.append(UE_coord_to_NeRF(float(cap['Loc']['X']), 
+                                                          float(cap['Loc']['Y']), 
+                                                          float(cap['Loc']['Z'])))
+            capture_rotation_list.append([float(cap['Rot']['Pitch']), float(cap['Rot']['Yaw']), float(cap['Rot']['Roll'])])
         
         camera = get_task_path(ref_cam, capture_position_list, capture_rotation_list, render_width, render_height, fov)
 
