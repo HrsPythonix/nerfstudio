@@ -129,10 +129,10 @@ def get_task_path(
     for pos, rot in zip(cam_positions, cam_rotations):
         camera_pos = torch.tensor(pos, device=camera.device)
         # lookat = camera_pos - center
-        lookat = [float(-np.cos(cam_rotations[0]) * np.sin(cam_rotations[1])),
-                  float(-np.cos(cam_rotations[0]) * np.cos(cam_rotations[1])),
-                  float(-np.sin(cam_rotations[0]))]
-        lookat = torch.tensor(lookat, device=camera.device)
+        lookat = [-np.cos(cam_rotations[0]) * np.sin(cam_rotations[1]),
+                  -np.cos(cam_rotations[0]) * np.cos(cam_rotations[1]),
+                  -np.sin(cam_rotations[0])]
+        lookat = torch.tensor(lookat, device=camera.device, dtype=torch.float)
         c2w = camera_utils.viewmatrix(lookat, up_vec, camera_pos)
         c2wh = pose_utils.to4x4(c2w)
         c2whs.append(c2wh[:3, :4])
