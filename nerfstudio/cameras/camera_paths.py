@@ -123,6 +123,11 @@ def get_task_path(
     fx = cx / math.tan(fovx / 2)
     fy = fx
 
+    cx = torch.tensor([cx], device=camera.device)
+    cy = torch.tensor([cy], device=camera.device)
+    fx = torch.tensor([fx], device=camera.device)
+    fy = torch.tensor([fy], device=camera.device)
+
     up_vec = torch.tensor([0.0, 0.0, 1.0], device=camera.device)
 
     c2whs = []
