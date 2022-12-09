@@ -116,13 +116,13 @@ method_configs["instant-ngp"] = Config(
 method_configs["mipnerf"] = Config(
     method_name="mipnerf",
     pipeline=VanillaPipelineConfig(
-        datamanager=VanillaDataManagerConfig(dataparser=BlenderDataParserConfig(), train_num_rays_per_batch=8192),
+        datamanager=VanillaDataManagerConfig(dataparser=NerfstudioDataParserConfig(), train_num_rays_per_batch=1024),
         model=VanillaModelConfig(
             _target=MipNerfModel,
             loss_coefficients={"rgb_loss_coarse": 0.1, "rgb_loss_fine": 1.0},
             num_coarse_samples=128,
             num_importance_samples=128,
-            eval_num_rays_per_chunk=8192,
+            eval_num_rays_per_chunk=1024,
         ),
     ),
     optimizers={
@@ -135,7 +135,9 @@ method_configs["mipnerf"] = Config(
 
 method_configs["semantic-nerfw"] = Config(
     method_name="semantic-nerfw",
-    trainer=TrainerConfig(steps_per_eval_batch=500, steps_per_save=2000, mixed_precision=True),
+    trainer=TrainerConfig(
+        steps_per_eval_batch=500, steps_per_save=2000, max_num_iterations=30000, mixed_precision=True
+    ),
     pipeline=VanillaPipelineConfig(
         datamanager=SemanticDataManagerConfig(
             dataparser=FriendsDataParserConfig(), train_num_rays_per_batch=4096, eval_num_rays_per_batch=8192

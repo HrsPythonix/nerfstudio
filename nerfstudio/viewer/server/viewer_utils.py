@@ -325,7 +325,7 @@ class ViewerState:
         # set the initial state whether to train or not
         self.vis["renderingState/isTraining"].write(start_train)
 
-        self.vis["renderingState/render_time"].write(str(0))
+        # self.vis["renderingState/render_time"].write(str(0))
 
         # set the properties of the camera
         # self.vis["renderingState/camera"].write(json_)
@@ -672,9 +672,12 @@ class ViewerState:
 
         aspect_ratio = camera_object["aspect"]
 
-        image_height = (num_vis_rays / aspect_ratio) ** 0.5
-        image_height = int(round(image_height, -1))
-        image_height = min(self.max_resolution, image_height)
+        if not self.camera_moving and not is_training:
+            image_height = self.max_resolution
+        else:
+            image_height = (num_vis_rays / aspect_ratio) ** 0.5
+            image_height = int(round(image_height, -1))
+            image_height = min(self.max_resolution, image_height)
         image_width = int(image_height * aspect_ratio)
         if image_width > self.max_resolution:
             image_width = self.max_resolution
@@ -756,8 +759,9 @@ class ViewerState:
             dim=0,
         )
 
-        times = float(self.vis["renderingState/render_time"].read())
-        times = torch.tensor([times])
+        times = self.vis["renderingState/render_time"].read()
+        if times is not None:
+            times = torch.tensor([float(times)])
 
         camera = Cameras(
             fx=intrinsics_matrix[0, 0],
