@@ -47,7 +47,7 @@ class NerfstudioDataParserConfig(DataParserConfig):
     _target: Type = field(default_factory=lambda: Nerfstudio)
     """target class to instantiate"""
     data: Path = Path("data/nerfstudio/poster")
-    """Directory specifying location of data."""
+    """Directory or explicit json file path specifying location of data."""
     scale_factor: float = 1.0
     """How much to scale the camera origins by."""
     downscale_factor: Optional[int] = None
@@ -74,23 +74,83 @@ class Nerfstudio(DataParser):
     def _generate_dataparser_outputs(self, split="train"):
         # pylint: disable=too-many-statements
 
-        meta = load_from_json(self.config.data / "transforms.json")
+        if self.config.data.suffix == ".json":
+            meta = load_from_json(self.config.data)
+            data_dir = self.config.data.parent
+        else:
+            meta = load_from_json(self.config.data / "transforms.json")
+            data_dir = self.config.data
+
         image_filenames = []
         mask_filenames = []
         poses = []
         num_skipped_image_filenames = 0
 
+        fx_fixed = "fl_x" in meta
+        fy_fixed = "fl_y" in meta
+        cx_fixed = "cx" in meta
+        cy_fixed = "cy" in meta
+        height_fixed = "h" in meta
+        width_fixed = "w" in meta
+        distort_fixed = False
+        for distort_key in ["k1", "k2", "k3", "p1", "p2"]:
+            if distort_key in meta:
+                distort_fixed = True
+                break
+        fx = []
+        fy = []
+        cx = []
+        cy = []
+        height = []
+        width = []
+        distort = []
+
         for frame in meta["frames"]:
             filepath = PurePath(frame["file_path"])
-            fname = self._get_fname(filepath)
+            fname = self._get_fname(filepath, data_dir)
             if not fname.exists():
                 num_skipped_image_filenames += 1
-            else:
-                image_filenames.append(fname)
-                poses.append(np.array(frame["transform_matrix"]))
+                continue
+
+            if not fx_fixed:
+                assert "fl_x" in frame, "fx not specified in frame"
+                fx.append(float(frame["fl_x"]))
+            if not fy_fixed:
+                assert "fl_y" in frame, "fy not specified in frame"
+                fy.append(float(frame["fl_y"]))
+            if not cx_fixed:
+                assert "cx" in frame, "cx not specified in frame"
+                cx.append(float(frame["cx"]))
+            if not cy_fixed:
+                assert "cy" in frame, "cy not specified in frame"
+                cy.append(float(frame["cy"]))
+            if not height_fixed:
+                assert "h" in frame, "height not specified in frame"
+                height.append(int(frame["h"]))
+            if not width_fixed:
+                assert "w" in frame, "width not specified in frame"
+                width.append(int(frame["w"]))
+            if not distort_fixed:
+                distort.append(
+                    camera_utils.get_distortion_params(
+                        k1=float(meta["k1"]) if "k1" in meta else 0.0,
+                        k2=float(meta["k2"]) if "k2" in meta else 0.0,
+                        k3=float(meta["k3"]) if "k3" in meta else 0.0,
+                        k4=float(meta["k4"]) if "k4" in meta else 0.0,
+                        p1=float(meta["p1"]) if "p1" in meta else 0.0,
+                        p2=float(meta["p2"]) if "p2" in meta else 0.0,
+                    )
+                )
+
+            image_filenames.append(fname)
+            poses.append(np.array(frame["transform_matrix"]))
             if "mask_path" in frame:
                 mask_filepath = PurePath(frame["mask_path"])
-                mask_fname = self._get_fname(mask_filepath, downsample_folder_prefix="masks_")
+                mask_fname = self._get_fname(
+                    mask_filepath,
+                    data_dir,
+                    downsample_folder_prefix="masks_",
+                )
                 mask_filenames.append(mask_fname)
         if num_skipped_image_filenames >= 0:
             CONSOLE.log(f"Skipping {num_skipped_image_filenames} files in dataset split {split}.")
@@ -131,7 +191,7 @@ class Nerfstudio(DataParser):
             orientation_method = self.config.orientation_method
 
         poses = torch.from_numpy(np.array(poses).astype(np.float32))
-        poses = camera_utils.auto_orient_and_center_poses(
+        poses, transform_matrix = camera_utils.auto_orient_and_center_poses(
             poses,
             method=orientation_method,
             center_poses=self.config.center_poses,
@@ -140,12 +200,14 @@ class Nerfstudio(DataParser):
         # Scale poses
         scale_factor = 1.0
         if self.config.auto_scale_poses:
-            scale_factor /= torch.max(torch.abs(poses[:, :3, 3]))
+            scale_factor /= float(torch.max(torch.abs(poses[:, :3, 3])))
+        scale_factor *= self.config.scale_factor
 
-        poses[:, :3, 3] *= scale_factor * self.config.scale_factor
+        poses[:, :3, 3] *= scale_factor
 
         # Choose image_filenames and poses based on split, but after auto orient and scaling the poses.
         image_filenames = [image_filenames[i] for i in indices]
+        mask_filenames = [mask_filenames[i] for i in indices] if len(mask_filenames) > 0 else []
         poses = poses[indices]
 
         # in x,y,z order
@@ -162,23 +224,33 @@ class Nerfstudio(DataParser):
         else:
             camera_type = CameraType.PERSPECTIVE
 
-        distortion_params = camera_utils.get_distortion_params(
-            k1=float(meta["k1"]) if "k1" in meta else 0.0,
-            k2=float(meta["k2"]) if "k2" in meta else 0.0,
-            k3=float(meta["k3"]) if "k3" in meta else 0.0,
-            k4=float(meta["k4"]) if "k4" in meta else 0.0,
-            p1=float(meta["p1"]) if "p1" in meta else 0.0,
-            p2=float(meta["p2"]) if "p2" in meta else 0.0,
-        )
+        idx_tensor = torch.tensor(indices, dtype=torch.long)
+        fx = float(meta["fl_x"]) if fx_fixed else torch.tensor(fx, dtype=torch.float32)[idx_tensor]
+        fy = float(meta["fl_y"]) if fy_fixed else torch.tensor(fy, dtype=torch.float32)[idx_tensor]
+        cx = float(meta["cx"]) if cx_fixed else torch.tensor(cx, dtype=torch.float32)[idx_tensor]
+        cy = float(meta["cy"]) if cy_fixed else torch.tensor(cy, dtype=torch.float32)[idx_tensor]
+        height = int(meta["h"]) if height_fixed else torch.tensor(height, dtype=torch.int32)[idx_tensor]
+        width = int(meta["w"]) if width_fixed else torch.tensor(width, dtype=torch.int32)[idx_tensor]
+        if distort_fixed:
+            distortion_params = camera_utils.get_distortion_params(
+                k1=float(meta["k1"]) if "k1" in meta else 0.0,
+                k2=float(meta["k2"]) if "k2" in meta else 0.0,
+                k3=float(meta["k3"]) if "k3" in meta else 0.0,
+                k4=float(meta["k4"]) if "k4" in meta else 0.0,
+                p1=float(meta["p1"]) if "p1" in meta else 0.0,
+                p2=float(meta["p2"]) if "p2" in meta else 0.0,
+            )
+        else:
+            distortion_params = torch.stack(distort, dim=0)[idx_tensor]
 
         cameras = Cameras(
-            fx=float(meta["fl_x"]),
-            fy=float(meta["fl_y"]),
-            cx=float(meta["cx"]),
-            cy=float(meta["cy"]),
+            fx=fx,
+            fy=fy,
+            cx=cx,
+            cy=cy,
             distortion_params=distortion_params,
-            height=int(meta["h"]),
-            width=int(meta["w"]),
+            height=height,
+            width=width,
             camera_to_worlds=poses[:, :3, :4],
             camera_type=camera_type,
         )
@@ -191,24 +263,30 @@ class Nerfstudio(DataParser):
             cameras=cameras,
             scene_box=scene_box,
             mask_filenames=mask_filenames if len(mask_filenames) > 0 else None,
+            dataparser_scale=scale_factor,
+            dataparser_transform=transform_matrix,
         )
         return dataparser_outputs
 
-    def _get_fname(self, filepath: PurePath, downsample_folder_prefix="images_") -> Path:
+    def _get_fname(self, filepath: PurePath, data_dir: PurePath, downsample_folder_prefix="images_") -> Path:
         """Get the filename of the image file.
         downsample_folder_prefix can be used to point to auxillary image data, e.g. masks
+
+        filepath: the base file name of the transformations.
+        data_dir: the directory of the data that contains the transform file
+        downsample_folder_prefix: prefix of the newly generated downsampled images
         """
 
         if self.downscale_factor is None:
             if self.config.downscale_factor is None:
-                test_img = Image.open(self.config.data / filepath)
+                test_img = Image.open(data_dir / filepath)
                 h, w = test_img.size
                 max_res = max(h, w)
                 df = 0
                 while True:
                     if (max_res / 2 ** (df)) < MAX_AUTO_RESOLUTION:
                         break
-                    if not (self.config.data / f"{downsample_folder_prefix}{2**(df+1)}" / filepath.name).exists():
+                    if not (data_dir / f"{downsample_folder_prefix}{2**(df+1)}" / filepath.name).exists():
                         break
                     df += 1
 
@@ -218,5 +296,5 @@ class Nerfstudio(DataParser):
                 self.downscale_factor = self.config.downscale_factor
 
         if self.downscale_factor > 1:
-            return self.config.data / f"{downsample_folder_prefix}{self.downscale_factor}" / filepath.name
-        return self.config.data / filepath
+            return data_dir / f"{downsample_folder_prefix}{self.downscale_factor}" / filepath.name
+        return data_dir / filepath

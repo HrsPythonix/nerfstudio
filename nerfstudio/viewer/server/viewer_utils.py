@@ -37,7 +37,7 @@ from aiortc import (
 from cryptography.utils import CryptographyDeprecationWarning
 from rich.console import Console
 
-from nerfstudio.cameras.cameras import Cameras
+from nerfstudio.cameras.cameras import Cameras, CameraType
 from nerfstudio.cameras.rays import RayBundle
 from nerfstudio.configs import base_config as cfg
 from nerfstudio.data.datasets.base_dataset import InputDataset
@@ -325,7 +325,7 @@ class ViewerState:
         # set the initial state whether to train or not
         self.vis["renderingState/isTraining"].write(start_train)
 
-        self.vis["renderingState/render_time"].write(str(0))
+        # self.vis["renderingState/render_time"].write(str(0))
 
         # set the properties of the camera
         # self.vis["renderingState/camera"].write(json_)
@@ -454,6 +454,19 @@ class ViewerState:
         else:
             self.prev_camera_matrix = camera_object["matrix"]
             self.camera_moving = True
+
+        output_type = self.vis["renderingState/output_choice"].read()
+        if output_type is None:
+            output_type = OutputTypes.INIT
+        if self.prev_output_type != output_type:
+            self.camera_moving = True
+
+        colormap_type = self.vis["renderingState/colormap_choice"].read()
+        if colormap_type is None:
+            colormap_type = ColormapTypes.INIT
+        if self.prev_colormap_type != colormap_type:
+            self.camera_moving = True
+
         return camera_object
 
     def _apply_colormap(self, outputs: Dict[str, Any], colors: torch.Tensor = None, eps=1e-6):
@@ -672,9 +685,12 @@ class ViewerState:
 
         aspect_ratio = camera_object["aspect"]
 
-        image_height = (num_vis_rays / aspect_ratio) ** 0.5
-        image_height = int(round(image_height, -1))
-        image_height = min(self.max_resolution, image_height)
+        if not self.camera_moving and not is_training:
+            image_height = self.max_resolution
+        else:
+            image_height = (num_vis_rays / aspect_ratio) ** 0.5
+            image_height = int(round(image_height, -1))
+            image_height = min(self.max_resolution, image_height)
         image_width = int(image_height * aspect_ratio)
         if image_width > self.max_resolution:
             image_width = self.max_resolution
@@ -756,14 +772,26 @@ class ViewerState:
             dim=0,
         )
 
-        times = float(self.vis["renderingState/render_time"].read())
-        times = torch.tensor([times])
+        times = self.vis["renderingState/render_time"].read()
+        if times is not None:
+            times = torch.tensor([float(times)])
+
+        camera_type_msg = camera_object["camera_type"]
+        if camera_type_msg == "perspective":
+            camera_type = CameraType.PERSPECTIVE
+        elif camera_type_msg == "fisheye":
+            camera_type = CameraType.FISHEYE
+        elif camera_type_msg == "equirectangular":
+            camera_type = CameraType.EQUIRECTANGULAR
+        else:
+            camera_type = CameraType.PERSPECTIVE
 
         camera = Cameras(
             fx=intrinsics_matrix[0, 0],
             fy=intrinsics_matrix[1, 1],
             cx=intrinsics_matrix[0, 2],
             cy=intrinsics_matrix[1, 2],
+            camera_type=camera_type,
             camera_to_worlds=camera_to_world[None, ...],
             times=times,
         )
