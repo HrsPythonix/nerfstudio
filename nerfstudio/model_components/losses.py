@@ -86,7 +86,7 @@ def lossfun_outer(
     Args:
         t: interval edges
         w: weights
-        t_env: interval edges of the upper bound enveloping historgram
+        t_env: interval edges of the upper bound enveloping histogram
         w_env: weights that should upper bound the inner (t,w) histogram
     """
     w_outer = outer(t[..., :-1], t[..., 1:], t_env[..., :-1], t_env[..., 1:], w_env)
@@ -193,7 +193,7 @@ def orientation_loss(
     """
     w = weights
     n = normals
-    v = viewdirs
+    v = viewdirs * -1
     n_dot_v = (n * v[..., None, :]).sum(axis=-1)
     return (w[..., 0] * torch.fmin(torch.zeros_like(n_dot_v), n_dot_v) ** 2).sum(dim=-1)
 
@@ -284,7 +284,7 @@ def depth_loss(
         predicted_depth: Depth prediction from the network.
         sigma: Uncertainty around depth value.
         directions_norm: Norms of ray direction vectors in the camera frame.
-        is_euclidean: Whether ground truth depths correponds to normalized direction vectors.
+        is_euclidean: Whether ground truth depths corresponds to normalized direction vectors.
         depth_loss_type: Type of depth loss to apply.
 
     Returns:
