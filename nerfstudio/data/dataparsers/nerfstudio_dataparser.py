@@ -37,7 +37,7 @@ from nerfstudio.data.scene_box import SceneBox
 from nerfstudio.utils.io import load_from_json
 
 CONSOLE = Console(width=120)
-MAX_AUTO_RESOLUTION = 1600
+MAX_AUTO_RESOLUTION = 2400
 
 
 @dataclass
@@ -149,11 +149,7 @@ class Nerfstudio(DataParser):
             poses.append(np.array(frame["transform_matrix"]))
             if "mask_path" in frame:
                 mask_filepath = PurePath(frame["mask_path"])
-                mask_fname = self._get_fname(
-                    mask_filepath,
-                    data_dir,
-                    downsample_folder_prefix="masks_",
-                )
+                mask_fname = self._get_fname(mask_filepath, data_dir, downsample_folder_prefix="masks_",)
                 mask_filenames.append(mask_fname)
 
             if "depth_file_path" in frame:
@@ -207,9 +203,7 @@ class Nerfstudio(DataParser):
 
         poses = torch.from_numpy(np.array(poses).astype(np.float32))
         poses, transform_matrix = camera_utils.auto_orient_and_center_poses(
-            poses,
-            method=orientation_method,
-            center_poses=self.config.center_poses,
+            poses, method=orientation_method, center_poses=self.config.center_poses,
         )
 
         # Scale poses
@@ -310,7 +304,7 @@ class Nerfstudio(DataParser):
                         break
                     df += 1
 
-                self.downscale_factor = 2**df
+                self.downscale_factor = 2 ** df
                 CONSOLE.log(f"Auto image downscale factor of {self.downscale_factor}")
             else:
                 self.downscale_factor = self.config.downscale_factor
