@@ -16,10 +16,10 @@
 Code for camera paths.
 """
 
-from typing import Any, Dict, Optional, Tuple
+import math
+from typing import Any, Dict, Optional, Tuple, Union
 
 import torch
-import math
 
 import nerfstudio.utils.poses as pose_utils
 from nerfstudio.cameras import camera_utils
@@ -101,21 +101,16 @@ def get_spiral_path(
         new_c2ws.append(c2wh[:3, :4])
     new_c2ws = torch.stack(new_c2ws, dim=0)
 
-    return Cameras(
-        fx=camera.fx[0],
-        fy=camera.fy[0],
-        cx=camera.cx[0],
-        cy=camera.cy[0],
-        camera_to_worlds=new_c2ws,
-    )
+    return Cameras(fx=camera.fx[0], fy=camera.fy[0], cx=camera.cx[0], cy=camera.cy[0], camera_to_worlds=new_c2ws,)
+
 
 def get_task_path(
-    camera:Cameras,
+    device: Union[torch.device, str],
     cam_positions: list,
     cam_rotations: list,
     render_width: int,
     render_height: int,
-    fov: float
+    fov: float,
 ) -> Cameras:
     fovx = math.radians(fov)
     cx = render_width // 2
@@ -123,27 +118,26 @@ def get_task_path(
     fx = cx / math.tan(fovx / 2)
     fy = fx
 
-    cx = torch.tensor([cx], device=camera.device)
-    cy = torch.tensor([cy], device=camera.device)
-    fx = torch.tensor([fx], device=camera.device)
-    fy = torch.tensor([fy], device=camera.device)
+    cx = torch.tensor([cx], device=device)
+    cy = torch.tensor([cy], device=device)
+    fx = torch.tensor([fx], device=device)
+    fy = torch.tensor([fy], device=device)
 
-    up_vec = torch.tensor([0.0, 0.0, 1.0], device=camera.device)
+    up_vec = torch.tensor([0.0, 0.0, 1.0], device=device)
 
     c2whs = []
     for pos, rot in zip(cam_positions, cam_rotations):
-        camera_pos = torch.tensor(pos, device=camera.device)
+        camera_pos = torch.tensor(pos, device=device)
         # lookat = camera_pos - center
-        lookat = [-math.cos(rot[0]) * math.sin(rot[1]),
-                  -math.cos(rot[0]) * math.cos(rot[1]),
-                  -math.sin(rot[0])]
-        lookat = torch.tensor(lookat, device=camera.device, dtype=torch.float)
+        lookat = [-math.cos(rot[0]) * math.cos(rot[1]), -math.cos(rot[0]) * math.sin(rot[1]), -math.sin(rot[0])]
+        lookat = torch.tensor(lookat, device=device, dtype=torch.float)
         c2w = camera_utils.viewmatrix(lookat, up_vec, camera_pos)
         c2wh = pose_utils.to4x4(c2w)
         c2whs.append(c2wh[:3, :4])
     c2whs = torch.stack(c2whs, dim=0)
 
-    return Cameras(fx = fx, fy = fy, cx = cx, cy = cy, camera_to_worlds=c2whs)
+    return Cameras(fx=fx, fy=fy, cx=cx, cy=cy, camera_to_worlds=c2whs)
+
 
 def get_circle_path(
     camera: Cameras,
@@ -175,6 +169,7 @@ def get_circle_path(
         c2whs.append(c2wh[:3, :4])
     c2whs = torch.stack(c2whs, dim=0)
     return Cameras(fx=camera.fx[0], fy=camera.fy[0], cx=render_width / 2, cy=render_height / 2, camera_to_worlds=c2whs)
+
 
 def get_path_from_json(camera_path: Dict[str, Any]) -> Cameras:
     """Takes a camera path dictionary and returns a trajectory as a Camera instance.
