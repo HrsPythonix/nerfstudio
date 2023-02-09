@@ -107,7 +107,7 @@ class CacheDataloader(DataLoader):
                 res = executor.submit(self.dataset.__getitem__, idx)
                 results.append(res)
 
-            for res in track(results, description="Loading data batch", transient=True):
+            for res in results:
                 batch_list.append(res.result())
 
         return batch_list
@@ -147,10 +147,7 @@ class EvalDataloader(DataLoader):
     """
 
     def __init__(
-        self,
-        input_dataset: InputDataset,
-        device: Union[torch.device, str] = "cpu",
-        **kwargs,
+        self, input_dataset: InputDataset, device: Union[torch.device, str] = "cpu", **kwargs,
     ):
         self.input_dataset = input_dataset
         self.cameras = input_dataset.cameras.to(device)
@@ -232,10 +229,7 @@ class RandIndicesEvalDataloader(EvalDataloader):
     """
 
     def __init__(
-        self,
-        input_dataset: InputDataset,
-        device: Union[torch.device, str] = "cpu",
-        **kwargs,
+        self, input_dataset: InputDataset, device: Union[torch.device, str] = "cpu", **kwargs,
     ):
         super().__init__(input_dataset, device, **kwargs)
         self.count = 0
