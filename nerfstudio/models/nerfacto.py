@@ -75,7 +75,7 @@ class NerfactoModelConfig(ModelConfig):
     """Maximum resolution of the hashmap for the base mlp."""
     log2_hashmap_size: int = 19
     """Size of the hashmap for the base mlp"""
-    num_proposal_samples_per_ray: Tuple[int, ...] = (256, 96)
+    num_proposal_samples_per_ray: Tuple[int, ...] = (512, 192)
     """Number of samples per ray for each proposal network."""
     num_nerf_samples_per_ray: int = 48
     """Number of samples per ray for the nerf network."""
@@ -89,8 +89,8 @@ class NerfactoModelConfig(ModelConfig):
     """Use the same proposal network. Otherwise use different ones."""
     proposal_net_args_list: List[Dict] = field(
         default_factory=lambda: [
-            {"hidden_dim": 16, "log2_hashmap_size": 17, "num_levels": 5, "max_res": 128},
-            {"hidden_dim": 16, "log2_hashmap_size": 17, "num_levels": 5, "max_res": 256},
+            {"hidden_dim": 18, "log2_hashmap_size": 19, "num_levels": 8, "max_res": 256},
+            {"hidden_dim": 18, "log2_hashmap_size": 19, "num_levels": 8, "max_res": 512},
         ]
     )
     """Arguments for the proposal density fields."""
@@ -157,9 +157,7 @@ class NerfactoModel(Model):
             for i in range(num_prop_nets):
                 prop_net_args = self.config.proposal_net_args_list[min(i, len(self.config.proposal_net_args_list) - 1)]
                 network = HashMLPDensityField(
-                    self.scene_box.aabb,
-                    spatial_distortion=scene_contraction,
-                    **prop_net_args,
+                    self.scene_box.aabb, spatial_distortion=scene_contraction, **prop_net_args,
                 )
                 self.proposal_networks.append(network)
             self.density_fns.extend([network.density_fn for network in self.proposal_networks])
@@ -311,10 +309,7 @@ class NerfactoModel(Model):
         image = batch["image"].to(self.device)
         rgb = outputs["rgb"]
         acc = colormaps.apply_colormap(outputs["accumulation"])
-        depth = colormaps.apply_depth_colormap(
-            outputs["depth"],
-            accumulation=outputs["accumulation"],
-        )
+        depth = colormaps.apply_depth_colormap(outputs["depth"], accumulation=outputs["accumulation"],)
 
         combined_rgb = torch.cat([image, rgb], dim=1)
         combined_acc = torch.cat([acc], dim=1)
@@ -342,10 +337,7 @@ class NerfactoModel(Model):
 
         for i in range(self.config.num_proposal_iterations):
             key = f"prop_depth_{i}"
-            prop_depth_i = colormaps.apply_depth_colormap(
-                outputs[key],
-                accumulation=outputs["accumulation"],
-            )
+            prop_depth_i = colormaps.apply_depth_colormap(outputs[key], accumulation=outputs["accumulation"],)
             images_dict[key] = prop_depth_i
 
         return metrics_dict, images_dict
