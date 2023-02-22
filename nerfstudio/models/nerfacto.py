@@ -89,8 +89,8 @@ class NerfactoModelConfig(ModelConfig):
     """Use the same proposal network. Otherwise use different ones."""
     proposal_net_args_list: List[Dict] = field(
         default_factory=lambda: [
-            {"hidden_dim": 16, "log2_hashmap_size": 19, "num_levels": 8, "max_res": 256},
-            {"hidden_dim": 16, "log2_hashmap_size": 19, "num_levels": 8, "max_res": 512},
+            {"hidden_dim": 18, "log2_hashmap_size": 19, "num_levels": 8, "max_res": 256},
+            {"hidden_dim": 18, "log2_hashmap_size": 19, "num_levels": 8, "max_res": 512},
         ]
     )
     """Arguments for the proposal density fields."""
