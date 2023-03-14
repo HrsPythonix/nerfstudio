@@ -190,9 +190,9 @@ class Nerfstudio(DataParser):
         # )  # equally spaced training images starting and ending at 0 and num_images-1
         # i_eval = np.setdiff1d(i_all, i_train)  # eval images are the remaining images
         # assert len(i_eval) == num_eval_images
-        if train_end_index == -1:
-            train_end_index = num_images
-        i_train = np.arange(train_start_index, train_end_index)
+        if self.config.train_end_index == -1:
+            self.config.train_end_index = num_images
+        i_train = np.arange(self.config.train_start_index, self.config.train_end_index)
         i_eval = np.setdiff1d(i_all, i_train)
         
         if split == "train":
