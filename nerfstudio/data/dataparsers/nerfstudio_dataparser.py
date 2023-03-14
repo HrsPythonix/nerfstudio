@@ -62,6 +62,8 @@ class NerfstudioDataParserConfig(DataParserConfig):
     """Whether to automatically scale the poses to fit in +/- 1 bounding box."""
     train_split_percentage: float = 0.9
     """The percent of images to use for training. The remaining images are for eval."""
+    train_start_index: int = 0
+    train_end_index: int = -1
     depth_unit_scale_factor: float = 1e-3
     """Scales the depth values to meters. Default value is 0.001 for a millimeter to meter conversion."""
 
@@ -180,14 +182,19 @@ class Nerfstudio(DataParser):
 
         # filter image_filenames and poses based on train/eval split percentage
         num_images = len(image_filenames)
-        num_train_images = math.ceil(num_images * self.config.train_split_percentage)
-        num_eval_images = num_images - num_train_images
+        # num_train_images = math.ceil(num_images * self.config.train_split_percentage)
+        # num_eval_images = num_images - num_train_images
         i_all = np.arange(num_images)
-        i_train = np.linspace(
-            0, num_images - 1, num_train_images, dtype=int
-        )  # equally spaced training images starting and ending at 0 and num_images-1
-        i_eval = np.setdiff1d(i_all, i_train)  # eval images are the remaining images
-        assert len(i_eval) == num_eval_images
+        # i_train = np.linspace(
+        #     0, num_images - 1, num_train_images, dtype=int
+        # )  # equally spaced training images starting and ending at 0 and num_images-1
+        # i_eval = np.setdiff1d(i_all, i_train)  # eval images are the remaining images
+        # assert len(i_eval) == num_eval_images
+        if train_end_index == -1:
+            train_end_index = num_images
+        i_train = np.arange(train_start_index, train_end_index)
+        i_eval = np.setdiff1d(i_all, i_train)
+        
         if split == "train":
             indices = i_train
         elif split in ["val", "test"]:
