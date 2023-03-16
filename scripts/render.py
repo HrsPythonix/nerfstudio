@@ -432,12 +432,12 @@ class RenderTrajectory:
             camera_type = CameraType.PERSPECTIVE
             camera_path = get_spiral_path(camera_start, steps=30, radius=0.1)
         elif self.traj == "train":
-            camera_start = pipeline.datamanager.eval_dataloader.get_camera(image_idx=0).flatten()
-            camera_path = pipeline.datamanager.train_dataset.cameras.to(camera_start.device)
+            # camera_start = pipeline.datamanager.eval_dataloader.get_camera(image_idx=0).flatten()
+            camera_path = pipeline.datamanager.train_dataset.cameras
             camera_type = pipeline.datamanager.train_dataset.cameras.camera_type
         elif self.traj == "eval":
-            camera_start = pipeline.datamanager.eval_dataloader.get_camera(image_idx=0).flatten()
-            camera_path = pipeline.datamanager.eval_dataset.cameras.to(camera_start.device)
+            # camera_start = pipeline.datamanager.eval_dataloader.get_camera(image_idx=0).flatten()
+            camera_path = pipeline.datamanager.eval_dataset.cameras
             camera_type = pipeline.datamanager.eval_dataset.cameras.camera_type
         elif self.traj == "filename":
             with open(self.camera_path_filename, "r", encoding="utf-8") as f:
