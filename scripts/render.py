@@ -58,6 +58,7 @@ def _render_trajectory_video(
     seconds: float = 5.0,
     output_format: Literal["images", "video"] = "video",
     camera_type: CameraType = CameraType.PERSPECTIVE,
+    image_names: List[Path] = [],
 ) -> None:
     """Helper function to create a video of the spiral trajectory.
 
@@ -134,7 +135,10 @@ def _render_trajectory_video(
                     render_image.append(output_image)
                 render_image = np.concatenate(render_image, axis=1)
                 if output_format == "images":
-                    media.write_image(output_image_dir / f"{camera_idx:05d}.png", render_image)
+                    if len(image_names) != cameras.size:
+                        media.write_image(output_image_dir / f"{camera_idx:05d}.png", render_image)
+                    else:
+                        media.write_image(output_image_dir / os.path.basename(image_names[camera_idx]), render_image)
                 if output_format == "video":
                     if writer is None:
                         render_width = int(render_image.shape[1])
@@ -426,6 +430,7 @@ class RenderTrajectory:
         crop_data = None
 
         # TODO(ethan): use camera information from parsing args
+        image_names = []
         if self.traj == "spiral":
             camera_start = pipeline.datamanager.eval_dataloader.get_camera(image_idx=0).flatten()
             # TODO(ethan): pass in the up direction of the camera
@@ -435,10 +440,12 @@ class RenderTrajectory:
             # camera_start = pipeline.datamanager.eval_dataloader.get_camera(image_idx=0).flatten()
             camera_path = pipeline.datamanager.train_dataset.cameras
             camera_type = pipeline.datamanager.train_dataset.cameras.camera_type
+            image_names = pipeline.datamanager.train_dataset._dataparser_outputs.image_filenames
         elif self.traj == "eval":
             # camera_start = pipeline.datamanager.eval_dataloader.get_camera(image_idx=0).flatten()
             camera_path = pipeline.datamanager.eval_dataset.cameras
             camera_type = pipeline.datamanager.eval_dataset.cameras.camera_type
+            image_names = pipeline.datamanager.eval_dataset._dataparser_outputs.image_filenames
         elif self.traj == "filename":
             with open(self.camera_path_filename, "r", encoding="utf-8") as f:
                 camera_path = json.load(f)
@@ -466,6 +473,7 @@ class RenderTrajectory:
             seconds=seconds,
             output_format=self.output_format,
             camera_type=camera_type,
+            image_names=image_names,
         )
 
 
