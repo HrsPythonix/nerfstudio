@@ -140,7 +140,11 @@ def _render_trajectory_video(
                         render_width = int(render_image.shape[1])
                         render_height = int(render_image.shape[0])
                         writer = stack.enter_context(
-                            media.VideoWriter(path=output_filename, shape=(render_height, render_width), fps=fps,)
+                            media.VideoWriter(
+                                path=output_filename,
+                                shape=(render_height, render_width),
+                                fps=fps,
+                            )
                         )
                     writer.add_image(render_image)
 
@@ -149,7 +153,9 @@ def _render_trajectory_video(
             insert_spherical_metadata_into_file(output_filename)
 
 
-def insert_spherical_metadata_into_file(output_filename: Path,) -> None:
+def insert_spherical_metadata_into_file(
+    output_filename: Path,
+) -> None:
     """Inserts spherical metadata into MP4 video file in-place.
     Args:
         output_filename: Name of the (input and) output file.
@@ -369,7 +375,7 @@ class RenderTrajectory:
     """Path to config YAML file."""
     rendered_output_names: List[str] = field(default_factory=lambda: ["rgb"])
     #  Trajectory to render.
-    traj: Literal["spiral", "circle", "server", "filename"] = "spiral"
+    traj: Literal["spiral", "circle", "server", "filename", "train", "eval"] = "spiral"
     # Scaling factor to apply to the camera image resolution.
     downscale_factor: int = 1
     """Scaling factor to apply to the camera image resolution."""
@@ -425,6 +431,14 @@ class RenderTrajectory:
             # TODO(ethan): pass in the up direction of the camera
             camera_type = CameraType.PERSPECTIVE
             camera_path = get_spiral_path(camera_start, steps=30, radius=0.1)
+        elif self.traj == "train":
+            camera_start = pipeline.datamanager.eval_dataloader.get_camera(image_idx=0).flatten()
+            camera_path = pipeline.datamanager.train_dataset.cameras.to(camera_start.device)
+            camera_type = pipeline.datamanager.train_dataset.cameras.camera_type
+        elif self.traj == "eval":
+            camera_start = pipeline.datamanager.eval_dataloader.get_camera(image_idx=0).flatten()
+            camera_path = pipeline.datamanager.eval_dataset.cameras.to(camera_start.device)
+            camera_type = pipeline.datamanager.eval_dataset.cameras.camera_type
         elif self.traj == "filename":
             with open(self.camera_path_filename, "r", encoding="utf-8") as f:
                 camera_path = json.load(f)
