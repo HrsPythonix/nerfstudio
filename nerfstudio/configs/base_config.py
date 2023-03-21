@@ -135,8 +135,10 @@ class ViewerConfig(PrintableConfig):
     """The zmq port to connect to for communication. If None, find an available port."""
     launch_bridge_server: bool = True
     """whether or not to launch the bridge server"""
-    websocket_port: Optional[int] = 7007
-    """the default websocket port to connect to"""
+    websocket_port: Optional[int] = None
+    """The websocket port to connect to. If None, find an available port."""
+    websocket_port_default: int = 7007
+    """The default websocket port to connect to if websocket_port is not specified"""
     ip_address: str = "127.0.0.1"
     """the ip address where the bridge server is running"""
     num_rays_per_chunk: int = 32768
@@ -146,6 +148,3 @@ class ViewerConfig(PrintableConfig):
     actually used in training/evaluation. If -1, display all."""
     quit_on_train_completion: bool = False
     """Whether to kill the training job when it has completed. Note this will stop rendering in the viewer."""
-    skip_openrelay: bool = False
-    """Avoid using openrelay to communicate with the viewer. Try disabling if you have trouble
-    connecting to the viewer"""

@@ -33,6 +33,7 @@ from typing_extensions import Literal, assert_never
 
 from nerfstudio.cameras.camera_paths import (
     get_circle_path,
+    get_interpolated_camera_path,
     get_path_from_json,
     get_spiral_path,
     get_task_path,
@@ -103,7 +104,6 @@ def _render_trajectory_video(
 
         with progress:
             for camera_idx in progress.track(range(cameras.size), description=""):
-
                 aabb_box = None
                 if crop_data is not None:
                     bounding_box_min = crop_data.center - crop_data.scale / 2.0
@@ -373,13 +373,18 @@ def get_crop_from_json(camera_json: Dict[str, Any]) -> Optional[CropData]:
 
 @dataclass
 class RenderTrajectory:
-    """Load a checkpoint, render a trajectory, and save to a video file."""
+    """Load a checkpoint, render a trajectory, and save to a video file.
+    The following trajectory options are available,
+    filename: Load from trajectory created using viewer or blender vfx plugin.
+    interpolate: Create trajectory by interpolating between eval dataset images.
+    spiral: Create a spiral trajectory (can be hit or miss).
+    """
 
     load_config: Path
     """Path to config YAML file."""
     rendered_output_names: List[str] = field(default_factory=lambda: ["rgb"])
     #  Trajectory to render.
-    traj: Literal["spiral", "circle", "server", "filename", "train", "eval"] = "spiral"
+    traj: Literal["spiral", "circle", "server", "filename", "interpolate", "train", "eval"] = "spiral"
     # Scaling factor to apply to the camera image resolution.
     downscale_factor: int = 1
     """Scaling factor to apply to the camera image resolution."""
@@ -391,6 +396,8 @@ class RenderTrajectory:
     """How long the video should be."""
     output_format: Literal["images", "video"] = "video"
     """How to save output data."""
+    interpolation_steps: int = 10
+    """Number of interpolation steps between eval dataset cameras."""
     eval_num_rays_per_chunk: Optional[int] = None
     # camera circle center
     circle_center: Tuple[float, float, float] = (0.0, 0.0, 0.0)
@@ -420,7 +427,7 @@ class RenderTrajectory:
         _, pipeline, _ = eval_setup(
             self.load_config,
             eval_num_rays_per_chunk=self.eval_num_rays_per_chunk,
-            test_mode="test" if self.traj == "spiral" or "circle" or "server" else "inference",
+            test_mode="test" if self.traj == "spiral" or "circle" or "server" or "interpolate" else "inference",
         )
 
         if self.traj != "server":
@@ -460,6 +467,11 @@ class RenderTrajectory:
                 camera_type = CameraType.PERSPECTIVE
             crop_data = get_crop_from_json(camera_path)
             camera_path = get_path_from_json(camera_path)
+        elif self.traj == "interpolate":
+            camera_type = CameraType.PERSPECTIVE
+            camera_path = get_interpolated_camera_path(
+                cameras=pipeline.datamanager.eval_dataloader.cameras, steps=self.interpolation_steps
+            )
         else:
             assert_never(self.traj)
 
