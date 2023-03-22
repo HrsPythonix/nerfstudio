@@ -290,6 +290,10 @@ class NerfactoModel(Model):
             outputs["ray_samples_list"] = ray_samples_list
             outputs["density_max"] = field_outputs[FieldHeadNames.DENSITY_MAX]
             outputs["density_embedding_max"] = field_outputs[FieldHeadNames.DENSITY_EMBEDDING_MAX]
+            outputs["density_min"] = field_outputs[FieldHeadNames.DENSITY_MIN]
+            outputs["density_embedding_min"] = field_outputs[FieldHeadNames.DENSITY_EMBEDDING_MIN]
+            outputs["rgb_output_max"] = field_outputs[FieldHeadNames.RGB].max()
+            outputs["rgb_output_min"] = field_outputs[FieldHeadNames.RGB].min()
 
         if self.training and self.config.predict_normals:
             outputs["rendered_orientation_loss"] = orientation_loss(
@@ -315,6 +319,17 @@ class NerfactoModel(Model):
             metrics_dict["distortion"] = distortion_loss(outputs["weights_list"], outputs["ray_samples_list"])
             metrics_dict["density_max"] = outputs["density_max"]
             metrics_dict["density_embedding_max"] = outputs["density_embedding_max"]
+            metrics_dict["density_min"] = outputs["density_min"]
+            metrics_dict["density_embedding_min"] = outputs["density_embedding_min"]
+            metrics_dict["rendered_rgb_max"] = outputs["rgb"].max()
+            metrics_dict["rendered_rgb_min"] = outputs["rgb"].min()
+            metrics_dict["image_rgb_max"] = image.max()
+            metrics_dict["image_rgb_min"] = image.min()
+            metrics_dict["rgb_output_max"] = outputs["rgb_output_max"]
+            metrics_dict["rgb_output_min"] = outputs["rgb_output_min"]
+            for i, w in enumerate(outputs["weights_list"]):
+                metrics_dict["weight_output_max_" + str(i)] = w.max()
+                metrics_dict["weight_output_min_" + str(i)] = w.min()
         return metrics_dict
 
     def get_loss_dict(self, outputs, batch, metrics_dict=None):

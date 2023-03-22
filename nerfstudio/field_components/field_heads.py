@@ -42,6 +42,8 @@ class FieldHeadNames(Enum):
     GRADIENT = "gradient"
     DENSITY_MAX = "density_max"
     DENSITY_EMBEDDING_MAX = "density_embedding_max"
+    DENSITY_MIN = "density_min"
+    DENSITY_EMBEDDING_MIN = "density_embedding_min"
 
 
 class FieldHead(FieldComponent):

@@ -122,6 +122,8 @@ class Field(nn.Module):
         field_outputs[FieldHeadNames.DENSITY] = density  # type: ignore
         field_outputs[FieldHeadNames.DENSITY_MAX] = density.max()
         field_outputs[FieldHeadNames.DENSITY_EMBEDDING_MAX] = density_embedding.max()
+        field_outputs[FieldHeadNames.DENSITY_MIN] = density.min()
+        field_outputs[FieldHeadNames.DENSITY_EMBEDDING_MIN] = density_embedding.min()
 
         if compute_normals:
             with torch.enable_grad():
