@@ -269,8 +269,6 @@ class TCNNNerfactoField(Field):
             print("ddddddddddddddddddddddddddddd_encoding")
 
         outputs_shape = ray_samples.frustums.directions.shape[:-1]
-        if torch.any(torch.isnan(outputs_shape)):
-            print("outputs_shapeoutputs_shapeoutputs_shapeoutputs_shape")
 
         # appearance
         if self.training:
