@@ -248,7 +248,7 @@ class TCNNNerfactoField(Field):
         # from smaller internal (float16) parameters.
         density = trunc_exp(density_before_activation.to(positions))
         density = density * selector[..., None]
-        return density, base_mlp_out.clamp(-1000, 1000)
+        return density, base_mlp_out
 
     def get_outputs(
         self, ray_samples: RaySamples, density_embedding: Optional[TensorType] = None
@@ -258,11 +258,19 @@ class TCNNNerfactoField(Field):
         if ray_samples.camera_indices is None:
             raise AttributeError("Camera indices are not provided.")
         camera_indices = ray_samples.camera_indices.squeeze()
+        if torch.any(torch.isnan(camera_indices)):
+            print("camera_indicescamera_indicescamera_indicescamera_indicescamera_indices")
         directions = shift_directions_for_tcnn(ray_samples.frustums.directions)
+        if torch.any(torch.isnan(directions)):
+            print("directionsdirectionsdirectionsdirectionsdirectionsdirections")
         directions_flat = directions.view(-1, 3)
         d = self.direction_encoding(directions_flat)
+        if torch.any(torch.isnan(d)):
+            print("ddddddddddddddddddddddddddddd_encoding")
 
         outputs_shape = ray_samples.frustums.directions.shape[:-1]
+        if torch.any(torch.isnan(outputs_shape)):
+            print("outputs_shapeoutputs_shapeoutputs_shapeoutputs_shape")
 
         # appearance
         if self.training:
@@ -276,6 +284,8 @@ class TCNNNerfactoField(Field):
                 embedded_appearance = torch.zeros(
                     (*directions.shape[:-1], self.appearance_embedding_dim), device=directions.device
                 )
+        if torch.any(torch.isnan(embedded_appearance)):
+            print("embedded_appearanceembedded_appearanceembedded_appearance")
 
         # transients
         if self.use_transient_embedding and self.training:
@@ -319,8 +329,13 @@ class TCNNNerfactoField(Field):
             ],
             dim=-1,
         )
+        if torch.any(torch.isnan(h)):
+            print("hhhhhhhhhhhhhhhhhhh")
         rgb = self.mlp_head(h).view(*outputs_shape, -1).to(directions)
         outputs.update({FieldHeadNames.RGB: rgb})
+        if torch.any(torch.isnan(rgb)):
+            print("rgbrgbrgbrgbrgbrgbrgbrgbrgbrgbrgbrgb")
+            exit()
 
         return outputs
 
