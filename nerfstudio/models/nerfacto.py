@@ -311,6 +311,8 @@ class NerfactoModel(Model):
         metrics_dict["psnr"] = self.psnr(outputs["rgb"], image)
         if self.training:
             metrics_dict["distortion"] = distortion_loss(outputs["weights_list"], outputs["ray_samples_list"])
+            metrics_dict["density_max"] = outputs["density_max"]
+            metrics_dict["density_embedding_max"] = outputs["density_embedding_max"]
         return metrics_dict
 
     def get_loss_dict(self, outputs, batch, metrics_dict=None):

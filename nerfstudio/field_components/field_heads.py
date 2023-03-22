@@ -40,6 +40,8 @@ class FieldHeadNames(Enum):
     SDF = "sdf"
     ALPHA = "alpha"
     GRADIENT = "gradient"
+    DENSITY_MAX = "density_max"
+    DENSITY_EMBEDDING_MAX = "density_embedding_max"
 
 
 class FieldHead(FieldComponent):
