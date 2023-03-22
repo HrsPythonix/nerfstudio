@@ -199,18 +199,18 @@ class Nerfstudio(DataParser):
         else:
             # filter image_filenames and poses based on train/eval split percentage
             num_images = len(image_filenames)
-            # num_train_images = math.ceil(num_images * self.config.train_split_percentage)
-            # num_eval_images = num_images - num_train_images
+            num_train_images = math.ceil(num_images * self.config.train_split_fraction)
+            num_eval_images = num_images - num_train_images
             i_all = np.arange(num_images)
-            # i_train = np.linspace(
-            #     0, num_images - 1, num_train_images, dtype=int
-            # )  # equally spaced training images starting and ending at 0 and num_images-1
-            # i_eval = np.setdiff1d(i_all, i_train)  # eval images are the remaining images
-            # assert len(i_eval) == num_eval_images
-            if self.config.train_end_index == -1:
-                self.config.train_end_index = num_images
-            i_train = np.arange(self.config.train_start_index, self.config.train_end_index)
-            i_eval = np.setdiff1d(i_all, i_train)
+            i_train = np.linspace(
+                0, num_images - 1, num_train_images, dtype=int
+            )  # equally spaced training images starting and ending at 0 and num_images-1
+            i_eval = np.setdiff1d(i_all, i_train)  # eval images are the remaining images
+            assert len(i_eval) == num_eval_images
+            # if self.config.train_end_index == -1:
+            #     self.config.train_end_index = num_images
+            # i_train = np.arange(self.config.train_start_index, self.config.train_end_index)
+            # i_eval = np.setdiff1d(i_all, i_train)
 
             if split == "train":
                 indices = i_train
