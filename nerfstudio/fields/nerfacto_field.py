@@ -248,7 +248,7 @@ class TCNNNerfactoField(Field):
         # from smaller internal (float16) parameters.
         density = trunc_exp(density_before_activation.to(positions))
         density = density * selector[..., None]
-        return density, base_mlp_out
+        return density, base_mlp_out.clamp(-1000, 1000)
 
     def get_outputs(
         self, ray_samples: RaySamples, density_embedding: Optional[TensorType] = None
