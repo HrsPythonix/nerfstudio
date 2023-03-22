@@ -288,6 +288,8 @@ class NerfactoModel(Model):
         if self.training:
             outputs["weights_list"] = weights_list
             outputs["ray_samples_list"] = ray_samples_list
+            outputs["density_max"] = field_outputs[FieldHeadNames.DENSITY_MAX]
+            outputs["density_embedding_max"] = field_outputs[FieldHeadNames.DENSITY_EMBEDDING_MAX]
 
         if self.training and self.config.predict_normals:
             outputs["rendered_orientation_loss"] = orientation_loss(
