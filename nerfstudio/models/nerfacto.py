@@ -352,6 +352,9 @@ class NerfactoModel(Model):
                 loss_dict["pred_normal_loss"] = self.config.pred_normal_loss_mult * torch.mean(
                     outputs["rendered_pred_normal_loss"]
                 )
+        for loss_key in loss_dict.keys():
+            if torch.any(torch.isnan(loss_dict[loss_key])):
+                print(loss_key * 5)
         return loss_dict
 
     def get_image_metrics_and_images(
