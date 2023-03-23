@@ -104,6 +104,7 @@ class TCNNNerfactoField(Field):
         use_pred_normals: bool = False,
         use_average_appearance_embedding: bool = False,
         spatial_distortion: SpatialDistortion = None,
+        sigmoid_geo_embeddimg: bool = False,
     ) -> None:
         super().__init__()
 
@@ -248,7 +249,10 @@ class TCNNNerfactoField(Field):
         # from smaller internal (float16) parameters.
         density = trunc_exp(density_before_activation.to(positions))
         density = density * selector[..., None]
-        return density, torch.sigmoid(base_mlp_out)
+        if sigmoid_geo_embeddimg:
+            return density, torch.sigmoid(base_mlp_out)
+        else:
+            return density, base_mlp_out
 
     def get_outputs(
         self, ray_samples: RaySamples, density_embedding: Optional[TensorType] = None
