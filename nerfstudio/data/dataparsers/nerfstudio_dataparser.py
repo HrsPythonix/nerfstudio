@@ -62,6 +62,7 @@ class NerfstudioDataParserConfig(DataParserConfig):
     """Whether to automatically scale the poses to fit in +/- 1 bounding box."""
     train_start_index: int = 0
     train_end_index: int = -1
+    train_use_fraction: float = 1.0
     train_split_fraction: float = 0.9
     """The fraction of images to use for training. The remaining images are for eval."""
     depth_unit_scale_factor: float = 1e-3
@@ -207,6 +208,7 @@ class Nerfstudio(DataParser):
             )  # equally spaced training images starting and ending at 0 and num_images-1
             i_eval = np.setdiff1d(i_all, i_train)  # eval images are the remaining images
             assert len(i_eval) == num_eval_images
+            i_train = i_train[: math.ceil(len(i_train) * self.config.train_use_fraction)]
             # if self.config.train_end_index == -1:
             #     self.config.train_end_index = num_images
             # i_train = np.arange(self.config.train_start_index, self.config.train_end_index)
