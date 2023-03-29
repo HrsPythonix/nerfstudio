@@ -130,6 +130,12 @@ class NerfactoModelConfig(ModelConfig):
     """Whether to disable scene contraction or not."""
     sigmoid_geo_embedding: bool = False
     """add sigmoid to geometry embeddimg to prevent nan"""
+    use_transient_embedding: bool = False
+    """use transient embedding"""
+    use_semantics: bool = False
+    """use semantics"""
+    pass_semantic_gradients: bool = False
+    """pass semantic gradients"""
 
 
 class NerfactoModel(Model):
@@ -164,6 +170,9 @@ class NerfactoModel(Model):
             use_pred_normals=self.config.predict_normals,
             use_average_appearance_embedding=self.config.use_average_appearance_embedding,
             sigmoid_geo_embeddimg=self.config.sigmoid_geo_embedding,
+            use_transient_embedding=self.config.use_transient_embedding,
+            use_semantics=self.config.use_semantics,
+            pass_semantic_gradients=self.config.pass_semantic_gradients,
         )
 
         self.density_fns = []
