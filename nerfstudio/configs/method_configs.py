@@ -95,7 +95,9 @@ method_configs["nerfacto"] = TrainerConfig(
             train_num_rays_per_batch=4096,
             eval_num_rays_per_batch=4096,
             camera_optimizer=CameraOptimizerConfig(
-                mode="SO3xR3", optimizer=AdamOptimizerConfig(lr=6e-4, eps=1e-8, weight_decay=1e-2)
+                mode="SO3xR3",
+                optimizer=AdamOptimizerConfig(lr=6e-4, eps=1e-8, weight_decay=1e-2),
+                scheduler=ExponentialDecaySchedulerConfig(lr_final=6e-6, max_steps=200000),
             ),
         ),
         model=NerfactoModelConfig(eval_num_rays_per_chunk=1 << 15),
@@ -126,7 +128,9 @@ method_configs["depth-nerfacto"] = TrainerConfig(
             train_num_rays_per_batch=4096,
             eval_num_rays_per_batch=4096,
             camera_optimizer=CameraOptimizerConfig(
-                mode="SO3xR3", optimizer=AdamOptimizerConfig(lr=6e-4, eps=1e-8, weight_decay=1e-2)
+                mode="SO3xR3",
+                optimizer=AdamOptimizerConfig(lr=6e-4, eps=1e-8, weight_decay=1e-2),
+                scheduler=ExponentialDecaySchedulerConfig(lr_final=6e-6, max_steps=200000),
             ),
         ),
         model=DepthNerfactoModelConfig(eval_num_rays_per_chunk=1 << 15),
@@ -134,11 +138,11 @@ method_configs["depth-nerfacto"] = TrainerConfig(
     optimizers={
         "proposal_networks": {
             "optimizer": AdamOptimizerConfig(lr=1e-2, eps=1e-15),
-            "scheduler": None,
+            "scheduler": ExponentialDecaySchedulerConfig(lr_final=0.0001, max_steps=200000),
         },
         "fields": {
             "optimizer": AdamOptimizerConfig(lr=1e-2, eps=1e-15),
-            "scheduler": None,
+            "scheduler": ExponentialDecaySchedulerConfig(lr_final=0.0001, max_steps=200000),
         },
     },
     viewer=ViewerConfig(num_rays_per_chunk=1 << 15),
@@ -475,7 +479,6 @@ method_configs["neus"] = TrainerConfig(
 external_methods, external_descriptions = discover_methods()
 method_configs.update(external_methods)
 descriptions.update(external_descriptions)
-
 AnnotatedBaseConfigUnion = tyro.conf.SuppressFixed[  # Don't show unparseable (fixed) arguments in helptext.
     tyro.conf.FlagConversionOff[
         tyro.extras.subcommand_type_from_defaults(defaults=method_configs, descriptions=descriptions)
