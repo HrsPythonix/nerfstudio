@@ -6,6 +6,7 @@ from __future__ import annotations
 
 import glob
 import json
+import math
 import os
 import struct
 import sys
@@ -16,10 +17,13 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
 
+import cv2
 import mediapy as media
 import numpy as np
 import torch
 import tyro
+from basicsr.archs.rrdbnet_arch import RRDBNet
+from realesrgan import RealESRGANer
 from rich.console import Console
 from rich.progress import (
     BarColumn,
@@ -227,7 +231,9 @@ xmlns:GSpherical='http://ns.google.com/videos/1.0/spherical/'>
             mp4file.close()
 
 
-def render_task(cameras: Cameras, save_list: List[str], pipeline: Pipeline, rendered_output_names: List[str]):
+def render_task(
+    cameras: Cameras, save_list: List[str], pipeline: Pipeline, rendered_output_names: List[str], upsampler, post_sr
+):
     cameras = cameras.to(pipeline.device)
 
     progress = Progress(
@@ -255,15 +261,24 @@ def render_task(cameras: Cameras, save_list: List[str], pipeline: Pipeline, rend
                     output_image = outputs[rendered_output_name].cpu().numpy()
                     render_image.append(output_image)
                 render_image = np.concatenate(render_image, axis=1)
+                render_image = (render_image * 255.0).astype(np.uint8)
+                if post_sr:
+                    render_image = sr_realesrgan(render_image, upsampler)
                 media.write_image(save_list[cam_idx], render_image)
 
 
-def UE_coord_to_NeRF(X: float, Y: float, Z: float):
-    return [X / 400.0, Y / 400.0, Z / 400.0 - 0.3]
+def sr_realesrgan(img, upsampler):
+    output, _ = upsampler.enhance(img, outscale=4)
+    output = cv2.resize(output, img.shape[:-1][::-1])
+    return output
 
 
-def parse_task_json(task_json_path: str, pipeline: Pipeline):
-    ref_cam = pipeline.datamanager.eval_dataloader.get_camera(image_idx=0)
+def UE_coord_to_NeRF(X: float, Y: float, Z: float, scaling: float, z_offset: float):
+    return [X / scaling, Y / scaling, Z / scaling + z_offset]
+
+
+def parse_task_json(task_json_path: str, pipeline: Pipeline, scaling: float, z_offset: float):
+    device = pipeline.datamanager.train_image_dataloader.device
     with open(task_json_path, "r") as f:
         task = json.load(f)
 
@@ -278,13 +293,19 @@ def parse_task_json(task_json_path: str, pipeline: Pipeline):
         for cap in task["CapturePosInfo"]:
             capture_save_list.append(os.path.join(root_path, cap["SavePath"]))
             capture_position_list.append(
-                UE_coord_to_NeRF(float(cap["Loc"]["X"]), float(cap["Loc"]["Y"]), float(cap["Loc"]["Z"]))
+                UE_coord_to_NeRF(
+                    float(cap["Loc"]["X"]), -float(cap["Loc"]["Y"]), float(cap["Loc"]["Z"]), scaling, z_offset
+                )
             )
             capture_rotation_list.append(
-                [float(cap["Rot"]["Pitch"]), float(cap["Rot"]["Yaw"]), float(cap["Rot"]["Roll"])]
+                [
+                    math.radians(float(cap["Rot"]["Pitch"])),
+                    -math.radians(float(cap["Rot"]["Yaw"])),
+                    math.radians(float(cap["Rot"]["Roll"])),
+                ]
             )
 
-        camera = get_task_path(ref_cam, capture_position_list, capture_rotation_list, render_width, render_height, fov)
+        camera = get_task_path(device, capture_position_list, capture_rotation_list, render_width, render_height, fov)
 
         return camera, capture_save_list
 
@@ -296,8 +317,14 @@ def start_server(
     query_interval: float,
     rendered_output_names: List[str],
     remove_after_parse: bool,
+    ignore_last: bool,
+    scaling: float,
+    z_offset: float,
+    upsampler,
+    post_sr,
 ):
     json_postfix = "*.json"
+    last_task = ""
     while True:
         time.sleep(query_interval)
 
@@ -306,37 +333,59 @@ def start_server(
             CONSOLE.print("No task detected...")
             continue
         else:
-            CONSOLE.print("Task detected!")
+            task = task_list[0]
+            if ignore_last and os.path.basename(task) == last_task:
+                CONSOLE.print("Task %s json ingnored!" % (os.path.basename(task)))
+                if len(task_list) >= 2:
+                    task = task_list[1]
+                else:
+                    continue
+
             cameras = save_list = None
             try:
-                cameras, save_list = parse_task_json(task_list[0], pipeline)
-                CONSOLE.print("Task %s json parsed!" % (os.path.basename(task_list[0])))
+                cameras, save_list = parse_task_json(task, pipeline, scaling, z_offset)
+                CONSOLE.print("Task %s json parsed!" % (os.path.basename(task)))
             except Exception as e:
                 traceback.print_exc()
                 print(e)
-                CONSOLE.print("Task %s json parse failed!" % (os.path.basename(task_list[0])))
+                CONSOLE.print("Task %s json parse failed!" % (os.path.basename(task)))
                 continue
 
             if remove_after_parse:
-                os.remove(task_list[0])
-                CONSOLE.print("Task %s json deleted!" % (os.path.basename(task_list[0])))
-
-            with open(log_path, "w") as f:
-                f.write("running, %s" % (os.path.basename(task_list[0])))
-                CONSOLE.print("Task %s running log dumped!" % (os.path.basename(task_list[0])))
-
-            if cameras and save_list:
                 try:
-                    render_task(cameras, save_list, pipeline, rendered_output_names)
-                    CONSOLE.print("Task %s rendered!" % (os.path.basename(task_list[0])))
+                    os.remove(task)
+                    CONSOLE.print("Task %s json deleted!" % (os.path.basename(task)))
                 except Exception as e:
                     traceback.print_exc()
                     print(e)
-                    continue
+                    CONSOLE.print("Task %s json delete failed!" % (os.path.basename(task)))
+            try:
+                with open(log_path, "w") as f:
+                    f.write("running, %s" % (os.path.basename(task)))
+                    CONSOLE.print("Task %s running log dumped!" % (os.path.basename(task)))
+            except Exception as e:
+                traceback.print_exc()
+                print(e)
+                CONSOLE.print("Task %s json log running failed!" % (os.path.basename(task)))
 
-            with open(log_path, "w") as f:
-                f.write("done, %s" % (os.path.basename(task_list[0])))
-                CONSOLE.print("Task %s done log dumped!" % (os.path.basename(task_list[0])))
+            if cameras and save_list:
+                try:
+                    render_task(cameras, save_list, pipeline, rendered_output_names, upsampler, post_sr)
+                    last_task = os.path.basename(task)
+                    CONSOLE.print("Task %s rendered!" % (os.path.basename(task)))
+                except Exception as e:
+                    traceback.print_exc()
+                    print(e)
+                    CONSOLE.print("Task %s render falied!" % (os.path.basename(task)))
+                    continue
+            try:
+                with open(log_path, "w") as f:
+                    f.write("done, %s" % (os.path.basename(task)))
+                    CONSOLE.print("Task %s done log dumped!" % (os.path.basename(task)))
+            except Exception as e:
+                traceback.print_exc()
+                print(e)
+                CONSOLE.print("Task %s json log done failed!" % (os.path.basename(task)))
 
 
 @dataclass
@@ -421,6 +470,14 @@ class RenderTrajectory:
     query_interval: Optional[float] = 1.0
     # remove json after parse
     remove_after_parse: Optional[bool] = True
+    # ignore last json
+    ignore_last: Optional[bool] = True
+    # scene scaling
+    scene_scaling: float = 400.0
+    # scene z offset
+    z_offset: float = -0.3
+    # super-resolution postprocess
+    post_sr: Optional[bool] = True
 
     def main(self) -> None:
         """Main function."""
@@ -436,57 +493,89 @@ class RenderTrajectory:
         seconds = self.seconds
         crop_data = None
 
-        # TODO(ethan): use camera information from parsing args
-        image_names = []
-        if self.traj == "spiral":
-            camera_start = pipeline.datamanager.eval_dataloader.get_camera(image_idx=0).flatten()
-            # TODO(ethan): pass in the up direction of the camera
-            camera_type = CameraType.PERSPECTIVE
-            camera_path = get_spiral_path(camera_start, steps=30, radius=0.1)
-        elif self.traj == "train":
-            # camera_start = pipeline.datamanager.eval_dataloader.get_camera(image_idx=0).flatten()
-            camera_path = pipeline.datamanager.train_dataset.cameras
-            camera_type = pipeline.datamanager.train_dataset.cameras.camera_type
-            image_names = pipeline.datamanager.train_dataset._dataparser_outputs.image_filenames
-        elif self.traj == "eval":
-            # camera_start = pipeline.datamanager.eval_dataloader.get_camera(image_idx=0).flatten()
-            camera_path = pipeline.datamanager.eval_dataset.cameras
-            camera_type = pipeline.datamanager.eval_dataset.cameras.camera_type
-            image_names = pipeline.datamanager.eval_dataset._dataparser_outputs.image_filenames
-        elif self.traj == "filename":
-            with open(self.camera_path_filename, "r", encoding="utf-8") as f:
-                camera_path = json.load(f)
-            seconds = camera_path["seconds"]
-            if "camera_type" not in camera_path:
+        model = RRDBNet(num_in_ch=3, num_out_ch=3, num_feat=64, num_block=23, num_grow_ch=32, scale=4)
+        netscale = 4
+
+        model_path = os.path.join("/home/user/Real-ESRGAN/weights", "RealESRGAN_x4plus.pth")
+        dni_weight = None
+
+        self.upsampler = RealESRGANer(
+            scale=netscale,
+            model_path=model_path,
+            dni_weight=dni_weight,
+            model=model,
+            tile=400,
+            tile_pad=10,
+            pre_pad=0,
+            half=True,
+        )
+
+        if self.traj != "server":
+            # TODO(ethan): use camera information from parsing args
+            image_names = []
+            if self.traj == "spiral":
+                camera_start = pipeline.datamanager.eval_dataloader.get_camera(image_idx=0).flatten()
+                # TODO(ethan): pass in the up direction of the camera
                 camera_type = CameraType.PERSPECTIVE
-            elif camera_path["camera_type"] == "fisheye":
-                camera_type = CameraType.FISHEYE
-            elif camera_path["camera_type"] == "equirectangular":
-                camera_type = CameraType.EQUIRECTANGULAR
+                camera_path = get_spiral_path(camera_start, steps=30, radius=0.1)
+            elif self.traj == "train":
+                # camera_start = pipeline.datamanager.eval_dataloader.get_camera(image_idx=0).flatten()
+                camera_path = pipeline.datamanager.train_dataset.cameras
+                camera_type = pipeline.datamanager.train_dataset.cameras.camera_type
+                image_names = pipeline.datamanager.train_dataset._dataparser_outputs.image_filenames
+            elif self.traj == "eval":
+                # camera_start = pipeline.datamanager.eval_dataloader.get_camera(image_idx=0).flatten()
+                camera_path = pipeline.datamanager.eval_dataset.cameras
+                camera_type = pipeline.datamanager.eval_dataset.cameras.camera_type
+                image_names = pipeline.datamanager.eval_dataset._dataparser_outputs.image_filenames
+            elif self.traj == "filename":
+                with open(self.camera_path_filename, "r", encoding="utf-8") as f:
+                    camera_path = json.load(f)
+                seconds = camera_path["seconds"]
+                if "camera_type" not in camera_path:
+                    camera_type = CameraType.PERSPECTIVE
+                elif camera_path["camera_type"] == "fisheye":
+                    camera_type = CameraType.FISHEYE
+                elif camera_path["camera_type"] == "equirectangular":
+                    camera_type = CameraType.EQUIRECTANGULAR
+                else:
+                    camera_type = CameraType.PERSPECTIVE
+                crop_data = get_crop_from_json(camera_path)
+                camera_path = get_path_from_json(camera_path)
+            elif self.traj == "interpolate":
+                camera_type = CameraType.PERSPECTIVE
+                camera_path = get_interpolated_camera_path(
+                    cameras=pipeline.datamanager.eval_dataloader.cameras, steps=self.interpolation_steps
+                )
             else:
-                camera_type = CameraType.PERSPECTIVE
-            crop_data = get_crop_from_json(camera_path)
-            camera_path = get_path_from_json(camera_path)
-        elif self.traj == "interpolate":
-            camera_type = CameraType.PERSPECTIVE
-            camera_path = get_interpolated_camera_path(
-                cameras=pipeline.datamanager.eval_dataloader.cameras, steps=self.interpolation_steps
+                assert_never(self.traj)
+
+            _render_trajectory_video(
+                pipeline,
+                camera_path,
+                output_filename=self.output_path,
+                rendered_output_names=self.rendered_output_names,
+                rendered_resolution_scaling_factor=1.0 / self.downscale_factor,
+                crop_data=crop_data,
+                seconds=seconds,
+                output_format=self.output_format,
+                camera_type=camera_type,
+                image_names=image_names,
             )
         else:
-            assert_never(self.traj)
-
-        _render_trajectory_video(
-            pipeline,
-            camera_path,
-            output_filename=self.output_path,
-            rendered_output_names=self.rendered_output_names,
-            rendered_resolution_scaling_factor=1.0 / self.downscale_factor,
-            crop_data=crop_data,
-            seconds=seconds,
-            output_format=self.output_format,
-            camera_type=camera_type,
-            image_names=image_names,
-        )
+            start_server(
+                pipeline,
+                self.task_dir,
+                self.log_path,
+                self.query_interval,
+                self.rendered_output_names,
+                self.remove_after_parse,
+                self.ignore_last,
+                self.scene_scaling,
+                self.z_offset,
+                self.upsampler,
+                self.post_sr,
+            )
 
 
 def entrypoint():
