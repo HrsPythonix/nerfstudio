@@ -489,26 +489,28 @@ class RenderTrajectory:
 
         if self.traj != "server":
             install_checks.check_ffmpeg_installed()
+        if self.post_sr:
+            seconds = self.seconds
+            crop_data = None
 
-        seconds = self.seconds
-        crop_data = None
+            model = RRDBNet(num_in_ch=3, num_out_ch=3, num_feat=64, num_block=23, num_grow_ch=32, scale=4)
+            netscale = 4
 
-        model = RRDBNet(num_in_ch=3, num_out_ch=3, num_feat=64, num_block=23, num_grow_ch=32, scale=4)
-        netscale = 4
+            model_path = os.path.join("/home/user/Real-ESRGAN/weights", "RealESRGAN_x4plus.pth")
+            dni_weight = None
 
-        model_path = os.path.join("/home/user/Real-ESRGAN/weights", "RealESRGAN_x4plus.pth")
-        dni_weight = None
-
-        self.upsampler = RealESRGANer(
-            scale=netscale,
-            model_path=model_path,
-            dni_weight=dni_weight,
-            model=model,
-            tile=400,
-            tile_pad=10,
-            pre_pad=0,
-            half=True,
-        )
+            self.upsampler = RealESRGANer(
+                scale=netscale,
+                model_path=model_path,
+                dni_weight=dni_weight,
+                model=model,
+                tile=400,
+                tile_pad=10,
+                pre_pad=0,
+                half=True,
+            )
+        else:
+            self.upsampler = None
 
         if self.traj != "server":
             # TODO(ethan): use camera information from parsing args
