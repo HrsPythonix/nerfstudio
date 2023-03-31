@@ -22,8 +22,6 @@ import mediapy as media
 import numpy as np
 import torch
 import tyro
-from basicsr.archs.rrdbnet_arch import RRDBNet
-from realesrgan import RealESRGANer
 from rich.console import Console
 from rich.progress import (
     BarColumn,
@@ -49,6 +47,14 @@ from nerfstudio.pipelines.base_pipeline import Pipeline
 from nerfstudio.utils import install_checks
 from nerfstudio.utils.eval_utils import eval_setup
 from nerfstudio.utils.rich_utils import ItersPerSecColumn
+
+try:
+    from basicsr.archs.rrdbnet_arch import RRDBNet
+    from realesrgan import RealESRGANer
+except ImportError:
+    _HAS_SR = False
+else:
+    _HAS_SR = True
 
 CONSOLE = Console(width=120)
 
@@ -262,7 +268,7 @@ def render_task(
                     render_image.append(output_image)
                 render_image = np.concatenate(render_image, axis=1)
                 render_image = (render_image * 255.0).astype(np.uint8)
-                if post_sr:
+                if post_sr and _HAS_SR:
                     render_image = sr_realesrgan(render_image, upsampler)
                 media.write_image(save_list[cam_idx], render_image)
 
@@ -489,7 +495,7 @@ class RenderTrajectory:
 
         if self.traj != "server":
             install_checks.check_ffmpeg_installed()
-        if self.post_sr:
+        if self.post_sr and _HAS_SR:
             seconds = self.seconds
             crop_data = None
 
