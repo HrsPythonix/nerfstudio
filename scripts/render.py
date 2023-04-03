@@ -495,10 +495,10 @@ class RenderTrajectory:
 
         if self.traj != "server":
             install_checks.check_ffmpeg_installed()
-        if self.post_sr and _HAS_SR:
-            seconds = self.seconds
-            crop_data = None
 
+        seconds = self.seconds
+        crop_data = None
+        if self.post_sr and _HAS_SR:
             model = RRDBNet(num_in_ch=3, num_out_ch=3, num_feat=64, num_block=23, num_grow_ch=32, scale=4)
             netscale = 4
 
