@@ -70,6 +70,8 @@ def _render_trajectory_video(
     output_format: Literal["images", "video"] = "video",
     camera_type: CameraType = CameraType.PERSPECTIVE,
     image_names: List[Path] = [],
+    post_sr: bool = False,
+    upsampler,
 ) -> None:
     """Helper function to create a video of the spiral trajectory.
 
@@ -144,6 +146,8 @@ def _render_trajectory_video(
                         output_image = np.concatenate((output_image,) * 3, axis=-1)
                     render_image.append(output_image)
                 render_image = np.concatenate(render_image, axis=1)
+                if post_sr and _HAS_SR:
+                    render_image = sr_realesrgan(render_image, upsampler)
                 if output_format == "images":
                     if len(image_names) != cameras.size:
                         media.write_image(output_image_dir / f"{camera_idx:05d}.png", render_image)
@@ -484,6 +488,8 @@ class RenderTrajectory:
     z_offset: float = -0.3
     # super-resolution postprocess
     post_sr: Optional[bool] = True
+    # sr model path
+    sr_model_dir: Optional[str] = "/home/user/Real-ESRGAN/weights"
 
     def main(self) -> None:
         """Main function."""
@@ -502,7 +508,7 @@ class RenderTrajectory:
             model = RRDBNet(num_in_ch=3, num_out_ch=3, num_feat=64, num_block=23, num_grow_ch=32, scale=4)
             netscale = 4
 
-            model_path = os.path.join("/home/user/Real-ESRGAN/weights", "RealESRGAN_x4plus.pth")
+            model_path = os.path.join(self.sr_model_dir, "RealESRGAN_x4plus.pth")
             dni_weight = None
 
             self.upsampler = RealESRGANer(
@@ -569,6 +575,8 @@ class RenderTrajectory:
                 output_format=self.output_format,
                 camera_type=camera_type,
                 image_names=image_names,
+                post_sr=self.post_sr,
+                upsampler=self.upsampler,
             )
         else:
             start_server(
