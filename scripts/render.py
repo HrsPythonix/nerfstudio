@@ -64,6 +64,7 @@ def _render_trajectory_video(
     cameras: Cameras,
     output_filename: Path,
     rendered_output_names: List[str],
+    upsampler,
     crop_data: Optional[CropData] = None,
     rendered_resolution_scaling_factor: float = 1.0,
     seconds: float = 5.0,
@@ -71,7 +72,6 @@ def _render_trajectory_video(
     camera_type: CameraType = CameraType.PERSPECTIVE,
     image_names: List[Path] = [],
     post_sr: bool = False,
-    upsampler,
 ) -> None:
     """Helper function to create a video of the spiral trajectory.
 
