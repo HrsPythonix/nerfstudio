@@ -72,6 +72,8 @@ def _render_trajectory_video(
     camera_type: CameraType = CameraType.PERSPECTIVE,
     image_names: List[Path] = [],
     post_sr: bool = False,
+    scale_width: Optional[int] = None,
+    scale_height: Optional[int] = None,
 ) -> None:
     """Helper function to create a video of the spiral trajectory.
 
@@ -148,7 +150,9 @@ def _render_trajectory_video(
                 render_image = np.concatenate(render_image, axis=1)
                 render_image = (render_image * 255.0).astype(np.uint8)
                 if post_sr and _HAS_SR:
-                    render_image = sr_realesrgan(render_image, upsampler)
+                    render_image = sr_realesrgan(
+                        render_image, upsampler, scale_width=scale_width, scale_height=scale_height
+                    )
                 if output_format == "images":
                     if len(image_names) != cameras.size:
                         media.write_image(output_image_dir / f"{camera_idx:05d}.png", render_image)
@@ -243,7 +247,14 @@ xmlns:GSpherical='http://ns.google.com/videos/1.0/spherical/'>
 
 
 def render_task(
-    cameras: Cameras, save_list: List[str], pipeline: Pipeline, rendered_output_names: List[str], upsampler, post_sr
+    cameras: Cameras,
+    save_list: List[str],
+    pipeline: Pipeline,
+    rendered_output_names: List[str],
+    upsampler,
+    post_sr,
+    scale_width: Optional[int] = None,
+    scale_height: Optional[int] = None,
 ):
     cameras = cameras.to(pipeline.device)
 
@@ -274,13 +285,18 @@ def render_task(
                 render_image = np.concatenate(render_image, axis=1)
                 render_image = (render_image * 255.0).astype(np.uint8)
                 if post_sr and _HAS_SR:
-                    render_image = sr_realesrgan(render_image, upsampler)
+                    render_image = sr_realesrgan(
+                        render_image, upsampler, scale_width=scale_width, scale_height=scale_height
+                    )
                 media.write_image(save_list[cam_idx], render_image)
 
 
-def sr_realesrgan(img, upsampler):
+def sr_realesrgan(img, upsampler, scale_width: Optional[int] = None, scale_height: Optional[int] = None):
     output, _ = upsampler.enhance(img, outscale=4)
-    output = cv2.resize(output, img.shape[:-1][::-1])
+    if scale_width == None or scale_height == None:
+        output = cv2.resize(output, img.shape[:-1][::-1])
+    else:
+        output = cv2.resize(output, (scale_width, scale_height))
     return output
 
 
@@ -333,6 +349,8 @@ def start_server(
     z_offset: float,
     upsampler,
     post_sr,
+    scale_width: Optional[int] = None,
+    scale_height: Optional[int] = None,
 ):
     json_postfix = "*.json"
     last_task = ""
@@ -381,7 +399,16 @@ def start_server(
 
             if cameras and save_list:
                 try:
-                    render_task(cameras, save_list, pipeline, rendered_output_names, upsampler, post_sr)
+                    render_task(
+                        cameras,
+                        save_list,
+                        pipeline,
+                        rendered_output_names,
+                        upsampler,
+                        post_sr,
+                        scale_width,
+                        scale_height,
+                    )
                     last_task = os.path.basename(task)
                     CONSOLE.print("Task %s rendered!" % (os.path.basename(task)))
                 except Exception as e:
@@ -491,6 +518,10 @@ class RenderTrajectory:
     post_sr: Optional[bool] = True
     # sr model path
     sr_model_dir: Optional[str] = "/home/user/Real-ESRGAN/weights"
+    # scale resolution width
+    scale_width: Optional[int] = None
+    # scale resolution height
+    scale_height: Optional[int] = None
 
     def main(self) -> None:
         """Main function."""
@@ -578,6 +609,8 @@ class RenderTrajectory:
                 image_names=image_names,
                 post_sr=self.post_sr,
                 upsampler=self.upsampler,
+                scale_width=self.scale_width,
+                scale_height=self.scale_height,
             )
         else:
             start_server(
@@ -592,6 +625,8 @@ class RenderTrajectory:
                 self.z_offset,
                 self.upsampler,
                 self.post_sr,
+                scale_width=self.scale_width,
+                scale_height=self.scale_height,
             )
 
 
