@@ -146,6 +146,7 @@ def _render_trajectory_video(
                         output_image = np.concatenate((output_image,) * 3, axis=-1)
                     render_image.append(output_image)
                 render_image = np.concatenate(render_image, axis=1)
+                render_image = (render_image * 255.0).astype(np.uint8)
                 if post_sr and _HAS_SR:
                     render_image = sr_realesrgan(render_image, upsampler)
                 if output_format == "images":
