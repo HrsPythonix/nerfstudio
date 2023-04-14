@@ -159,8 +159,8 @@ class Nerfstudio(DataParser):
                 )
                 mask_filenames.append(mask_fname)
 
-            if "depth_file_path" in frame:
-                depth_filepath = PurePath(frame["depth_file_path"])
+            if "depth_filenames" in frame:
+                depth_filepath = PurePath(frame["depth_filenames"])
                 depth_fname = self._get_fname(depth_filepath, data_dir, downsample_folder_prefix="depths_")
                 depth_filenames.append(depth_fname)
 
@@ -182,7 +182,7 @@ class Nerfstudio(DataParser):
             len(depth_filenames) == len(image_filenames)
         ), """
         Different number of image and depth filenames.
-        You should check that depth_file_path is specified for every frame (or zero frames) in transforms.json.
+        You should check that depth_filenames is specified for every frame (or zero frames) in transforms.json.
         """
         has_split_files_spec = any(f"{split}_filenames" in meta for split in ("train", "val", "test"))
         if f"{split}_filenames" in meta:
