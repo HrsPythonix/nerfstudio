@@ -111,6 +111,9 @@ class DepthNerfactoModel(NerfactoModel):
         if not self.config.is_euclidean_depth:
             ground_truth_depth = ground_truth_depth * outputs["directions_norm"]
 
+        print(float(torch.min(ground_truth_depth)) / float(torch.min(ground_truth_depth)))
+        print(float(torch.max(ground_truth_depth)) / float(torch.max(ground_truth_depth)))
+
         ground_truth_depth_colormap = colormaps.apply_depth_colormap(ground_truth_depth)
         predicted_depth_colormap = colormaps.apply_depth_colormap(
             outputs["depth"],
