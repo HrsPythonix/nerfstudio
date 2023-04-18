@@ -155,8 +155,8 @@ method_configs["nerfacto-small-bs"] = TrainerConfig(
     pipeline=VanillaPipelineConfig(
         datamanager=VanillaDataManagerConfig(
             dataparser=NerfstudioDataParserConfig(),
-            train_num_rays_per_batch=8192,
-            eval_num_rays_per_batch=8192,
+            train_num_rays_per_batch=2048,
+            eval_num_rays_per_batch=2048,
             camera_optimizer=CameraOptimizerConfig(
                 mode="SO3xR3",
                 optimizer=AdamOptimizerConfig(lr=3e-4, eps=1e-8, weight_decay=1e-2),
