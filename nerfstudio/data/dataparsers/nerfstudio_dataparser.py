@@ -235,7 +235,7 @@ class Nerfstudio(DataParser):
         )
 
         # Scale poses
-        scale_factor = 1.0
+        scale_factor = self.config.scene_scale
         if self.config.auto_scale_poses:
             scale_factor /= float(torch.max(torch.abs(poses[:, :3, 3])))
         scale_factor *= self.config.scale_factor
