@@ -317,7 +317,7 @@ class Nerfstudio(DataParser):
             metadata={
                 "depth_filenames": depth_filenames if len(depth_filenames) > 0 else None,
                 "depth_unit_scale_factor": self.config.depth_unit_scale_factor,
-                "custom_depth_scale": custom_depth_scale,
+                "custom_depth_scale": self.config.custom_depth_scale,
             },
         )
         return dataparser_outputs
