@@ -39,6 +39,7 @@ class DepthDataset(InputDataset):
         )
         self.depth_filenames = self.metadata["depth_filenames"]
         self.depth_unit_scale_factor = self.metadata["depth_unit_scale_factor"]
+        self.custom_depth_scale = self.metadata["custom_depth_scale"]
 
     def get_metadata(self, data: Dict) -> Dict:
         filepath = self.depth_filenames[data["image_idx"]]
@@ -46,7 +47,11 @@ class DepthDataset(InputDataset):
         width = int(self._dataparser_outputs.cameras.width[data["image_idx"]])
 
         # Scale depth images to meter units and also by scaling applied to cameras
-        scale_factor = 10.0  # self.depth_unit_scale_factor * self._dataparser_outputs.dataparser_scale
+        scale_factor = (
+            self.custom_depth_scale
+            if self.custom_depth_scale
+            else self.depth_unit_scale_factor * self._dataparser_outputs.dataparser_scale
+        )
         depth_image = get_depth_image_from_path(
             filepath=filepath, height=height, width=width, scale_factor=scale_factor
         )

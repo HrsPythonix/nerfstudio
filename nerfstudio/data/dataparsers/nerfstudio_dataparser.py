@@ -67,6 +67,8 @@ class NerfstudioDataParserConfig(DataParserConfig):
     """The fraction of images to use for training. The remaining images are for eval."""
     depth_unit_scale_factor: float = 1e-3
     """Scales the depth values to meters. Default value is 0.001 for a millimeter to meter conversion."""
+    custom_depth_scale: Optional[float] = None
+    """use fixed custom scale"""
 
 
 @dataclass
@@ -315,6 +317,7 @@ class Nerfstudio(DataParser):
             metadata={
                 "depth_filenames": depth_filenames if len(depth_filenames) > 0 else None,
                 "depth_unit_scale_factor": self.config.depth_unit_scale_factor,
+                "custom_depth_scale": custom_depth_scale,
             },
         )
         return dataparser_outputs
