@@ -150,7 +150,7 @@ method_configs["nerfacto-small-bs"] = TrainerConfig(
     method_name="nerfacto",
     steps_per_eval_batch=500,
     steps_per_save=2000,
-    max_num_iterations=400000,
+    max_num_iterations=200000,
     mixed_precision=True,
     pipeline=VanillaPipelineConfig(
         datamanager=VanillaDataManagerConfig(
@@ -160,7 +160,7 @@ method_configs["nerfacto-small-bs"] = TrainerConfig(
             camera_optimizer=CameraOptimizerConfig(
                 mode="SO3xR3",
                 optimizer=AdamOptimizerConfig(lr=3e-4, eps=1e-8, weight_decay=1e-2),
-                scheduler=ExponentialDecaySchedulerConfig(lr_final=3e-6, max_steps=400000),
+                scheduler=ExponentialDecaySchedulerConfig(lr_final=3e-6, max_steps=200000),
             ),
         ),
         model=NerfactoModelConfig(eval_num_rays_per_chunk=1 << 15),
@@ -168,11 +168,11 @@ method_configs["nerfacto-small-bs"] = TrainerConfig(
     optimizers={
         "proposal_networks": {
             "optimizer": AdamOptimizerConfig(lr=5e-3, eps=1e-15),
-            "scheduler": ExponentialDecaySchedulerConfig(lr_final=5e-5, max_steps=400000),
+            "scheduler": ExponentialDecaySchedulerConfig(lr_final=5e-5, max_steps=200000),
         },
         "fields": {
             "optimizer": AdamOptimizerConfig(lr=5e-3, eps=1e-15),
-            "scheduler": ExponentialDecaySchedulerConfig(lr_final=5e-5, max_steps=400000),
+            "scheduler": ExponentialDecaySchedulerConfig(lr_final=5e-5, max_steps=200000),
         },
     },
     viewer=ViewerConfig(num_rays_per_chunk=1 << 15),
