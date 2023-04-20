@@ -85,6 +85,8 @@ class TrainerConfig(ExperimentConfig):
     """Path to config YAML file."""
     log_gradients: bool = False
     """Optionally log gradients during training"""
+    project_name: Optional[str] = None
+    """project_name for wandb"""
 
 
 class Trainer:
