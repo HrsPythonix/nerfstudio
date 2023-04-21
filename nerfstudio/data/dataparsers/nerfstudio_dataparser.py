@@ -69,6 +69,8 @@ class NerfstudioDataParserConfig(DataParserConfig):
     """Scales the depth values to meters. Default value is 0.001 for a millimeter to meter conversion."""
     custom_depth_scale: Optional[float] = None
     """use fixed custom scale"""
+    pose_scale: float = 1.0
+    """pose bound."""
 
 
 @dataclass
@@ -237,7 +239,7 @@ class Nerfstudio(DataParser):
         )
 
         # Scale poses
-        scale_factor = self.config.scene_scale
+        scale_factor = self.config.pose_scale
         if self.config.auto_scale_poses:
             scale_factor /= float(torch.max(torch.abs(poses[:, :3, 3])))
         scale_factor *= self.config.scale_factor
