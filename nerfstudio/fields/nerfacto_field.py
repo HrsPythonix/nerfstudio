@@ -105,6 +105,7 @@ class TCNNNerfactoField(Field):
         use_average_appearance_embedding: bool = False,
         spatial_distortion: SpatialDistortion = None,
         sigmoid_geo_embeddimg: bool = False,
+        sc_out_bound: float = 2.0,
     ) -> None:
         super().__init__()
 
@@ -125,6 +126,7 @@ class TCNNNerfactoField(Field):
         self.use_pred_normals = use_pred_normals
         self.pass_semantic_gradients = pass_semantic_gradients
         self.sigmoid_geo_embeddimg = sigmoid_geo_embeddimg
+        self.sc_out_bound = sc_out_bound
 
         base_res: int = 16
         features_per_level: int = 2
@@ -230,8 +232,8 @@ class TCNNNerfactoField(Field):
         """Computes and returns the densities."""
         if self.spatial_distortion is not None:
             positions = ray_samples.frustums.get_positions()
-            positions = self.spatial_distortion(positions)
-            positions = (positions + 2.0) / 4.0
+            positions = self.spatial_distortion(positions, self.sc_out_bound)
+            positions = (positions + self.sc_out_bound) / (2 * self.sc_out_bound)
         else:
             positions = SceneBox.get_normalized_positions(ray_samples.frustums.get_positions(), self.aabb)
         # Make sure the tcnn gets inputs between 0 and 1.

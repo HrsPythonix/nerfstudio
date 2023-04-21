@@ -63,10 +63,10 @@ class SceneContraction(SpatialDistortion):
         super().__init__()
         self.order = order
 
-    def forward(self, positions):
-        def contract(x):
+    def forward(self, positions, outer_bound=2.0):
+        def contract(x, outer_bound=2.0):
             mag = torch.linalg.norm(x, ord=self.order, dim=-1)[..., None]
-            return torch.where(mag < 1, x, (2 - (1 / mag)) * (x / mag))
+            return torch.where(mag < 1, x, (outer_bound - (1 / mag)) * (x / mag))
 
         if isinstance(positions, Gaussians):
             means = contract(positions.mean.clone())
@@ -85,4 +85,4 @@ class SceneContraction(SpatialDistortion):
 
             return Gaussians(mean=means, cov=cov)
 
-        return contract(positions)
+        return contract(positions, outer_bound=outer_bound)

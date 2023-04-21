@@ -47,6 +47,7 @@ from nerfstudio.model_components.losses import (
     pred_normal_loss,
 )
 from nerfstudio.model_components.ray_samplers import (
+    LinearDisparitySampler,
     ProposalNetworkSampler,
     UniformSampler,
 )
@@ -104,7 +105,7 @@ class NerfactoModelConfig(ModelConfig):
         ]
     )
     """Arguments for the proposal density fields."""
-    proposal_initial_sampler: Literal["piecewise", "uniform"] = "piecewise"
+    proposal_initial_sampler: Literal["piecewise", "uniform", "disparity"] = "piecewise"
     """Initial sampler for the proposal network. Piecewise is preferred for unbounded scenes."""
     interlevel_loss_mult: float = 1.0
     """Proposal loss multiplier."""
@@ -136,6 +137,10 @@ class NerfactoModelConfig(ModelConfig):
     """use semantics"""
     pass_semantic_gradients: bool = False
     """pass semantic gradients"""
+    piecewise_start_dist: float = 1.0
+    """from where to switch from linear uniform to Disp"""
+    sc_out_bound: float = 2.0
+    """scene contraction result bound, [-1,1] is foreground, [-sc_out_bound, -1] | [1, sc_out_bound] is background, [-sc_out_bound, sc_out_bound] will scaled to [0,1] for tcnn.HashGrid"""
 
 
 class NerfactoModel(Model):
@@ -173,6 +178,7 @@ class NerfactoModel(Model):
             use_transient_embedding=self.config.use_transient_embedding,
             use_semantics=self.config.use_semantics,
             pass_semantic_gradients=self.config.pass_semantic_gradients,
+            sc_out_bound=self.config.sc_out_bound,
         )
 
         self.density_fns = []
@@ -207,6 +213,8 @@ class NerfactoModel(Model):
         initial_sampler = None  # None is for piecewise as default (see ProposalNetworkSampler)
         if self.config.proposal_initial_sampler == "uniform":
             initial_sampler = UniformSampler(single_jitter=self.config.use_single_jitter)
+        elif self.config.proposal_initial_sampler == "disparity":
+            initial_sampler = LinearDisparitySampler(single_jitter=self.config.use_single_jitter)
 
         self.proposal_sampler = ProposalNetworkSampler(
             num_nerf_samples_per_ray=self.config.num_nerf_samples_per_ray,
@@ -215,6 +223,7 @@ class NerfactoModel(Model):
             single_jitter=self.config.use_single_jitter,
             update_sched=update_schedule,
             initial_sampler=initial_sampler,
+            starting_distance=self.config.piecewise_start_dist,
         )
 
         # Collider

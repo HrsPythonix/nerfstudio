@@ -236,11 +236,14 @@ class UniformLinDispPiecewiseSampler(SpacedSampler):
         num_samples: Optional[int] = None,
         train_stratified=True,
         single_jitter=False,
+        starting_distance: float = 1.0,
     ) -> None:
         super().__init__(
             num_samples=num_samples,
-            spacing_fn=lambda x: torch.where(x < 1, x / 2, 1 - 1 / (2 * x)),
-            spacing_fn_inv=lambda x: torch.where(x < 0.5, 2 * x, 1 / (2 - 2 * x)),
+            spacing_fn=lambda x: torch.where(
+                x < starting_distance, x / (starting_distance * 2), 1 - starting_distance / (2 * x)
+            ),
+            spacing_fn_inv=lambda x: torch.where(x < 0.5, 2 * starting_distance * x, starting_distance / (2 - 2 * x)),
             train_stratified=train_stratified,
             single_jitter=single_jitter,
         )
@@ -527,6 +530,7 @@ class ProposalNetworkSampler(Sampler):
         single_jitter: bool = False,
         update_sched: Callable = lambda x: 1,
         initial_sampler: Optional[Sampler] = None,
+        starting_distance: float = 1.0,
     ) -> None:
         super().__init__()
         self.num_proposal_samples_per_ray = num_proposal_samples_per_ray
@@ -538,7 +542,7 @@ class ProposalNetworkSampler(Sampler):
 
         # samplers
         if initial_sampler is None:
-            self.initial_sampler = UniformLinDispPiecewiseSampler(single_jitter=single_jitter)
+            self.initial_sampler = UniformLinDispPiecewiseSampler(single_jitter=single_jitter, starting_distance=starting_distance)
         else:
             self.initial_sampler = initial_sampler
         self.pdf_sampler = PDFSampler(include_original=False, single_jitter=single_jitter)
