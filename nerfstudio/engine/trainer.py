@@ -87,6 +87,8 @@ class TrainerConfig(ExperimentConfig):
     """Optionally log gradients during training"""
     project_name: Optional[str] = None
     """project_name for wandb"""
+    save_eval_image: bool = False
+    """save eval image for wandb"""
 
 
 class Trainer:
@@ -445,8 +447,9 @@ class Trainer:
             )
             writer.put_dict(name="Eval Images Metrics", scalar_dict=metrics_dict, step=step)
             group = "Eval Images"
-            for image_name, image in images_dict.items():
-                writer.put_image(name=group + "/" + image_name, image=image, step=step)
+            if self.config.save_eval_image:
+                for image_name, image in images_dict.items():
+                    writer.put_image(name=group + "/" + image_name, image=image, step=step)
 
         # all eval images
         if step_check(step, self.config.steps_per_eval_all_images):
