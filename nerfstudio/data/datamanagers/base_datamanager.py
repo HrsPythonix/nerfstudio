@@ -362,6 +362,8 @@ class VanillaDataManagerConfig(DataManagerConfig):
     """
     patch_size: int = 1
     """Size of patch to sample from. If >1, patch-based sampling will be used."""
+    disable_distortion: bool = False
+    """Disable camer undistortion op"""
 
 
 class VanillaDataManager(DataManager):  # pylint: disable=abstract-method
@@ -473,6 +475,7 @@ class VanillaDataManager(DataManager):  # pylint: disable=abstract-method
         self.train_ray_generator = RayGenerator(
             self.train_dataset.cameras.to(self.device),
             self.train_camera_optimizer,
+            disable_distortion=self.config.disable_distortion,
         )
 
     def setup_eval(self):
@@ -496,6 +499,7 @@ class VanillaDataManager(DataManager):  # pylint: disable=abstract-method
         self.eval_ray_generator = RayGenerator(
             self.eval_dataset.cameras.to(self.device),
             self.eval_camera_optimizer,
+            disable_distortion=self.config.disable_distortion,
         )
         # for loading full images
         self.fixed_indices_eval_dataloader = FixedIndicesEvalDataloader(
