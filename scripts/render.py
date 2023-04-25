@@ -74,6 +74,7 @@ def _render_trajectory_video(
     post_sr: bool = False,
     scale_width: Optional[int] = None,
     scale_height: Optional[int] = None,
+    disable_distortion: bool = False,
 ) -> None:
     """Helper function to create a video of the spiral trajectory.
 
@@ -123,7 +124,9 @@ def _render_trajectory_video(
                     bounding_box_min = crop_data.center - crop_data.scale / 2.0
                     bounding_box_max = crop_data.center + crop_data.scale / 2.0
                     aabb_box = SceneBox(torch.stack([bounding_box_min, bounding_box_max]).to(pipeline.device))
-                camera_ray_bundle = cameras.generate_rays(camera_indices=camera_idx, aabb_box=aabb_box)
+                camera_ray_bundle = cameras.generate_rays(
+                    camera_indices=camera_idx, aabb_box=aabb_box, disable_distortion=disable_distortion
+                )
 
                 if crop_data is not None:
                     with renderers.background_color_override_context(
@@ -522,6 +525,8 @@ class RenderTrajectory:
     scale_width: Optional[int] = None
     # scale resolution height
     scale_height: Optional[int] = None
+    # disable distortion
+    disable_distortion: bool = False
 
     def main(self) -> None:
         """Main function."""
@@ -611,6 +616,7 @@ class RenderTrajectory:
                 upsampler=self.upsampler,
                 scale_width=self.scale_width,
                 scale_height=self.scale_height,
+                disable_distortion=self.disable_distortion,
             )
         else:
             start_server(
