@@ -110,6 +110,7 @@ def _render_trajectory_video(
             output_depthvis_dir = output_filename.parent / "depth_vis"
             output_depth_dir.mkdir(parents=True, exist_ok=True)
             output_depthvis_dir.mkdir(parents=True, exist_ok=True)
+            output_c2ws = []
     if output_format == "video":
         # make the folder if it doesn't exist
         output_filename.parent.mkdir(parents=True, exist_ok=True)
@@ -183,6 +184,12 @@ def _render_trajectory_video(
                             media.write_image(
                                 output_depthvis_dir / os.path.basename(image_names[camera_idx]), depth_vis
                             )
+                            output_c2ws.append(
+                                {
+                                    "name": os.path.basename(image_names[camera_idx]),
+                                    "c2w": cameras.camera_to_worlds[camera_idx].tolist(),
+                                }
+                            )
 
                 if output_format == "video":
                     if writer is None:
@@ -197,6 +204,9 @@ def _render_trajectory_video(
                         )
                     writer.add_image(render_image)
 
+    if save_depth:
+        with open(output_filename.parent / "c2ws.json", "w") as f:
+            json.dump(output_c2ws, f)
     if output_format == "video":
         if camera_type == CameraType.EQUIRECTANGULAR:
             insert_spherical_metadata_into_file(output_filename)
