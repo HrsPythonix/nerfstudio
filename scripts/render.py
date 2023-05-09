@@ -44,7 +44,7 @@ from nerfstudio.cameras.cameras import Cameras, CameraType
 from nerfstudio.data.scene_box import SceneBox
 from nerfstudio.model_components import renderers
 from nerfstudio.pipelines.base_pipeline import Pipeline
-from nerfstudio.utils import install_checks
+from nerfstudio.utils import colormaps, install_checks
 from nerfstudio.utils.eval_utils import eval_setup
 from nerfstudio.utils.rich_utils import ItersPerSecColumn
 
@@ -75,6 +75,7 @@ def _render_trajectory_video(
     scale_width: Optional[int] = None,
     scale_height: Optional[int] = None,
     disable_distortion: bool = False,
+    save_depth: bool = False,
 ) -> None:
     """Helper function to create a video of the spiral trajectory.
 
@@ -104,6 +105,11 @@ def _render_trajectory_video(
     if output_format == "images":
         output_image_dir = output_filename.parent / output_filename.stem
         output_image_dir.mkdir(parents=True, exist_ok=True)
+        if save_depth:
+            output_depth_dir = output_filename.parent / "depth"
+            output_depthvis_dir = output_filename.parent / "depth_vis"
+            output_depth_dir.mkdir(parents=True, exist_ok=True)
+            output_depthvis_dir.mkdir(parents=True, exist_ok=True)
     if output_format == "video":
         # make the folder if it doesn't exist
         output_filename.parent.mkdir(parents=True, exist_ok=True)
@@ -161,6 +167,19 @@ def _render_trajectory_video(
                         media.write_image(output_image_dir / f"{camera_idx:05d}.png", render_image)
                     else:
                         media.write_image(output_image_dir / os.path.basename(image_names[camera_idx]), render_image)
+                        if save_depth:
+                            output_depth = outputs["depth"].cpu().numpy()
+                            np.savetxt(
+                                output_depth_dir / (os.path.basename(image_names[camera_idx]) + ".txt"), output_depth
+                            )
+
+                            depth_vis = colormaps.apply_depth_colormap(outputs["depth"])
+                            depth_vis = depth_vis.cpu().numpy()
+                            depth_vis = (depth_vis * 255.0).astype(np.uint8)
+                            media.write_image(
+                                output_depthvis_dir / os.path.basename(image_names[camera_idx]), depth_vis
+                            )
+
                 if output_format == "video":
                     if writer is None:
                         render_width = int(render_image.shape[1])
@@ -527,6 +546,8 @@ class RenderTrajectory:
     scale_height: Optional[int] = None
     # disable distortion
     disable_distortion: bool = False
+    # save depth
+    save_depth: bool = False
 
     def main(self) -> None:
         """Main function."""
@@ -617,6 +638,7 @@ class RenderTrajectory:
                 scale_width=self.scale_width,
                 scale_height=self.scale_height,
                 disable_distortion=self.disable_distortion,
+                save_depth=self.save_depth,
             )
         else:
             start_server(
