@@ -178,7 +178,7 @@ def _render_trajectory_video(
                                 outputs["depth"], accumulation=outputs["accumulation"]
                             )
                             depth_vis = depth_vis.cpu().numpy()
-                            depth_vis = (depth_vis * 255.0).astype(np.uint8)
+                            depth_vis = (depth_vis).astype(np.uint8)
                             media.write_image(
                                 output_depthvis_dir / os.path.basename(image_names[camera_idx]), depth_vis
                             )
