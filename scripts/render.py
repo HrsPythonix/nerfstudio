@@ -178,7 +178,7 @@ def _render_trajectory_video(
                                 outputs["depth"], accumulation=outputs["accumulation"]
                             )
                             depth_vis = torch.cat([depth_vis], dim=1)
-                            depth_vis = depth_vis.detach().cpu()
+                            depth_vis = depth_vi.cpu().numpy()
                             depth_vis = (depth_vis * 255.0).astype(np.uint8)
                             media.write_image(
                                 output_depthvis_dir / os.path.basename(image_names[camera_idx]), depth_vis
