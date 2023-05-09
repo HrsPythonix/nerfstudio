@@ -168,7 +168,8 @@ def _render_trajectory_video(
                     else:
                         media.write_image(output_image_dir / os.path.basename(image_names[camera_idx]), render_image)
                         if save_depth:
-                            output_depth = outputs["depth"].cpu().numpy().reshape(output_depth.shape[:-1])
+                            output_depth = outputs["depth"].cpu().numpy()
+                            output_depth = output_depth.reshape(output_depth.shape[:-1])
                             np.savetxt(
                                 output_depth_dir / (os.path.basename(image_names[camera_idx]) + ".txt"), output_depth
                             )
