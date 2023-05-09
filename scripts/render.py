@@ -174,7 +174,9 @@ def _render_trajectory_video(
                                 output_depth_dir / (os.path.basename(image_names[camera_idx]) + ".txt"), output_depth
                             )
 
-                            depth_vis = colormaps.apply_depth_colormap(outputs["depth"])
+                            depth_vis = colormaps.apply_depth_colormap(
+                                outputs["depth"], accumulation=outputs["accumulation"]
+                            )
                             depth_vis = depth_vis.cpu().numpy()
                             depth_vis = (depth_vis * 255.0).astype(np.uint8)
                             media.write_image(
