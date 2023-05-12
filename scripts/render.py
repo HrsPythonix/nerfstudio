@@ -76,6 +76,7 @@ def _render_trajectory_video(
     scale_height: Optional[int] = None,
     disable_distortion: bool = False,
     save_depth: bool = False,
+    traj: str = "",
 ) -> None:
     """Helper function to create a video of the spiral trajectory.
 
@@ -205,7 +206,7 @@ def _render_trajectory_video(
                     writer.add_image(render_image)
 
     if save_depth:
-        with open(output_filename.parent / "c2ws.json", "w") as f:
+        with open(output_filename.parent / "c2ws_{}.json".format(traj), "w") as f:
             json.dump(output_c2ws, f)
     if output_format == "video":
         if camera_type == CameraType.EQUIRECTANGULAR:
@@ -653,6 +654,7 @@ class RenderTrajectory:
                 scale_height=self.scale_height,
                 disable_distortion=self.disable_distortion,
                 save_depth=self.save_depth,
+                traj=self.traj,
             )
         else:
             start_server(
