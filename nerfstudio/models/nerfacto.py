@@ -40,6 +40,7 @@ from nerfstudio.field_components.spatial_distortions import SceneContraction
 from nerfstudio.fields.density_fields import HashMLPDensityField
 from nerfstudio.fields.nerfacto_field import TCNNNerfactoField
 from nerfstudio.model_components.losses import (
+    L1Loss,
     MSELoss,
     distortion_loss,
     interlevel_loss,
@@ -141,6 +142,7 @@ class NerfactoModelConfig(ModelConfig):
     """from where to switch from linear uniform to Disp"""
     sc_out_bound: float = 2.0
     """scene contraction result bound, [-1,1] is foreground, [-sc_out_bound, -1] | [1, sc_out_bound] is background, [-sc_out_bound, sc_out_bound] will scaled to [0,1] for tcnn.HashGrid"""
+    use_l1_loss: bool = False
 
 
 class NerfactoModel(Model):
@@ -239,7 +241,7 @@ class NerfactoModel(Model):
         self.normals_shader = NormalsShader()
 
         # losses
-        self.rgb_loss = MSELoss()
+        self.rgb_loss = L1Loss() if self.config.use_l1_loss else MSELoss()
 
         # metrics
         self.psnr = PeakSignalNoiseRatio(data_range=1.0)
