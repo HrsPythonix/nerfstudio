@@ -69,6 +69,8 @@ class NerfstudioDataParserConfig(DataParserConfig):
     """Scales the depth values to meters. Default value is 0.001 for a millimeter to meter conversion."""
     custom_depth_scale: Optional[float] = None
     """use fixed custom scale"""
+    custom_split_dataset: bool = False
+    custom_split_part: Literal["1", "2"] = "1"
 
 
 @dataclass
@@ -87,6 +89,13 @@ class Nerfstudio(DataParser):
         else:
             meta = load_from_json(self.config.data / "transforms.json")
             data_dir = self.config.data
+
+        if self.config.custom_split_dataset:
+            frames_num = len(meta["frames"])
+            if self.config.custom_split_part == "1":
+                meta["frames"] = meta["frames"][: frames_num // 2]
+            elif self.config.custom_split_part == "2":
+                meta["frames"] = meta["frames"][frames_num // 2 :]
 
         image_filenames = []
         mask_filenames = []
