@@ -1,4 +1,4 @@
-# Copyright 2022 The Nerfstudio Team. All rights reserved.
+# Copyright 2022 the Regents of the University of California, Nerfstudio Team and contributors. All rights reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -20,13 +20,13 @@ from __future__ import annotations
 
 import functools
 from dataclasses import dataclass, field
-from typing import Type, Union
+from typing import Literal, Type, Union
 
 import torch
 import tyro
-from torch import nn
-from torchtyping import TensorType
-from typing_extensions import Literal, assert_never
+from jaxtyping import Float, Int
+from torch import Tensor, nn
+from typing_extensions import assert_never
 
 from nerfstudio.cameras.lie_groups import exp_map_SE3, exp_map_SO3xR3
 from nerfstudio.configs.base_config import InstantiateConfig
@@ -101,8 +101,8 @@ class CameraOptimizer(nn.Module):
 
     def forward(
         self,
-        indices: TensorType["num_cameras"],
-    ) -> TensorType["num_cameras", 3, 4]:
+        indices: Int[Tensor, "num_cameras"],
+    ) -> Float[Tensor, "num_cameras 3 4"]:
         """Indexing into camera adjustments.
         Args:
             indices: indices of Cameras to optimize.

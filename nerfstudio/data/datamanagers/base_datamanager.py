@@ -1,4 +1,4 @@
-# Copyright 2022 The Nerfstudio Team. All rights reserved.
+# Copyright 2022 the Regents of the University of California, Nerfstudio Team and contributors. All rights reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -18,44 +18,26 @@ Datamanager.
 
 from __future__ import annotations
 
+import functools
 from abc import abstractmethod
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Tuple, Type, Union
+from typing import Any, Dict, Generic, List, Literal, Optional, Tuple, Type, Union
 
 import torch
-import tyro
-from rich.progress import Console
 from torch import nn
 from torch.nn import Parameter
 from torch.utils.data import Dataset
 from torch.utils.data.distributed import DistributedSampler
-from typing_extensions import Literal
+from typing_extensions import TypeVar
 
 from nerfstudio.cameras.camera_optimizers import CameraOptimizerConfig
 from nerfstudio.cameras.cameras import CameraType
 from nerfstudio.cameras.rays import RayBundle
 from nerfstudio.configs.base_config import InstantiateConfig
-from nerfstudio.data.dataparsers.arkitscenes_dataparser import (
-    ARKitScenesDataParserConfig,
-)
+from nerfstudio.configs.dataparser_configs import AnnotatedDataParserUnion
 from nerfstudio.data.dataparsers.base_dataparser import DataparserOutputs
 from nerfstudio.data.dataparsers.blender_dataparser import BlenderDataParserConfig
-from nerfstudio.data.dataparsers.dnerf_dataparser import DNeRFDataParserConfig
-from nerfstudio.data.dataparsers.dycheck_dataparser import DycheckDataParserConfig
-from nerfstudio.data.dataparsers.instant_ngp_dataparser import (
-    InstantNGPDataParserConfig,
-)
-from nerfstudio.data.dataparsers.minimal_dataparser import MinimalDataParserConfig
-from nerfstudio.data.dataparsers.nerfosr_dataparser import NeRFOSRDataParserConfig
-from nerfstudio.data.dataparsers.nerfstudio_dataparser import NerfstudioDataParserConfig
-from nerfstudio.data.dataparsers.nuscenes_dataparser import NuScenesDataParserConfig
-from nerfstudio.data.dataparsers.phototourism_dataparser import (
-    PhototourismDataParserConfig,
-)
-from nerfstudio.data.dataparsers.scannet_dataparser import ScanNetDataParserConfig
-from nerfstudio.data.dataparsers.sdfstudio_dataparser import SDFStudioDataParserConfig
-from nerfstudio.data.dataparsers.sitcoms3d_dataparser import Sitcoms3DDataParserConfig
 from nerfstudio.data.datasets.base_dataset import InputDataset
 from nerfstudio.data.pixel_samplers import (
     EquirectangularPixelSampler,
@@ -71,8 +53,7 @@ from nerfstudio.data.utils.nerfstudio_collate import nerfstudio_collate
 from nerfstudio.engine.callbacks import TrainingCallback, TrainingCallbackAttributes
 from nerfstudio.model_components.ray_generators import RayGenerator
 from nerfstudio.utils.misc import IterableWrapper
-
-CONSOLE = Console(width=120)
+from nerfstudio.utils.rich_utils import CONSOLE
 
 
 def variable_res_collate(batch: List[Dict]) -> Dict:
@@ -88,7 +69,7 @@ def variable_res_collate(batch: List[Dict]) -> Dict:
         image = data.pop("image")
         mask = data.pop("mask", None)
         images.append(image)
-        if mask:
+        if mask is not None:
             masks.append(mask)
 
     new_batch: dict = nerfstudio_collate(batch)
@@ -97,30 +78,6 @@ def variable_res_collate(batch: List[Dict]) -> Dict:
         new_batch["mask"] = masks
 
     return new_batch
-
-
-AnnotatedDataParserUnion = tyro.conf.OmitSubcommandPrefixes[  # Omit prefixes of flags in subcommands.
-    tyro.extras.subcommand_type_from_defaults(
-        {
-            "nerfstudio-data": NerfstudioDataParserConfig(),
-            "minimal-parser": MinimalDataParserConfig(),
-            "arkit-data": ARKitScenesDataParserConfig(),
-            "blender-data": BlenderDataParserConfig(),
-            "instant-ngp-data": InstantNGPDataParserConfig(),
-            "nuscenes-data": NuScenesDataParserConfig(),
-            "dnerf-data": DNeRFDataParserConfig(),
-            "phototourism-data": PhototourismDataParserConfig(),
-            "dycheck-data": DycheckDataParserConfig(),
-            "scannet-data": ScanNetDataParserConfig(),
-            "sdfstudio-data": SDFStudioDataParserConfig(),
-            "nerfosr-data": NeRFOSRDataParserConfig(),
-            "sitcoms3d-data": Sitcoms3DDataParserConfig(),
-        },
-        prefix_names=False,  # Omit prefixes in subcommands themselves.
-    )
-]
-"""Union over possible dataparser types, annotated with metadata for tyro. This is the
-same as the vanilla union, but results in shorter subcommand names."""
 
 
 @dataclass
@@ -149,10 +106,11 @@ class DataManager(nn.Module):
     Usage:
     To get data, use the next_train and next_eval functions.
     This data manager's next_train and next_eval methods will return 2 things:
-        1. A Raybundle: This will contain the rays we are sampling, with latents and
-            conditionals attached (everything needed at inference)
-        2. A "batch" of auxiliary information: This will contain the mask, the ground truth
-            pixels, etc needed to actually train, score, etc the model
+
+    1. A Raybundle: This will contain the rays we are sampling, with latents and
+        conditionals attached (everything needed at inference)
+    2. A "batch" of auxiliary information: This will contain the mask, the ground truth
+        pixels, etc needed to actually train, score, etc the model
 
     Rationale:
     Because of this abstraction we've added, we can support more NeRF paradigms beyond the
@@ -178,6 +136,7 @@ class DataManager(nn.Module):
         eval_count (int): the step number of our eval iteration, needs to be incremented manually
         train_dataset (Dataset): the dataset for the train dataset
         eval_dataset (Dataset): the dataset for the eval dataset
+        includes_time (bool): whether the dataset includes time information
 
         Additional attributes specific to each subclass are defined in the setup_train and setup_eval
         functions.
@@ -188,6 +147,7 @@ class DataManager(nn.Module):
     eval_dataset: Optional[Dataset] = None
     train_sampler: Optional[DistributedSampler] = None
     eval_sampler: Optional[DistributedSampler] = None
+    includes_time: bool = False
 
     def __init__(self):
         """Constructor for the DataManager class.
@@ -366,7 +326,10 @@ class VanillaDataManagerConfig(DataManagerConfig):
     """Disable camer undistortion op"""
 
 
-class VanillaDataManager(DataManager):  # pylint: disable=abstract-method
+TDataset = TypeVar("TDataset", bound=InputDataset, default=InputDataset)
+
+
+class VanillaDataManager(DataManager, Generic[TDataset]):  # pylint: disable=abstract-method
     """Basic stored data manager implementation.
 
     This is pretty much a port over from our old dataloading utilities, and is a little jank
@@ -380,8 +343,8 @@ class VanillaDataManager(DataManager):  # pylint: disable=abstract-method
     """
 
     config: VanillaDataManagerConfig
-    train_dataset: InputDataset
-    eval_dataset: InputDataset
+    train_dataset: TDataset
+    eval_dataset: TDataset
     train_dataparser_outputs: DataparserOutputs
     train_pixel_sampler: Optional[PixelSampler] = None
     eval_pixel_sampler: Optional[PixelSampler] = None
@@ -395,6 +358,7 @@ class VanillaDataManager(DataManager):  # pylint: disable=abstract-method
         local_rank: int = 0,
         **kwargs,  # pylint: disable=unused-argument
     ):
+        self.dataset_type: Type[TDataset] = kwargs.get("_dataset_type", TDataset.__default__)
         self.config = config
         self.device = device
         self.world_size = world_size
@@ -408,6 +372,7 @@ class VanillaDataManager(DataManager):  # pylint: disable=abstract-method
         else:
             self.config.data = self.config.dataparser.data
         self.dataparser = self.dataparser_config.setup()
+        self.includes_time = self.dataparser.includes_time
         self.train_dataparser_outputs = self.dataparser.get_dataparser_outputs(split="train")
 
         self.train_dataset = self.create_train_dataset()
@@ -424,22 +389,29 @@ class VanillaDataManager(DataManager):  # pylint: disable=abstract-method
 
         super().__init__()
 
-    def create_train_dataset(self) -> InputDataset:
+    def __class_getitem__(cls, item):
+        return type(
+            cls.__name__,
+            (cls,),
+            {"__module__": cls.__module__, "__init__": functools.partialmethod(cls.__init__, _dataset_type=item)},
+        )
+
+    def create_train_dataset(self) -> TDataset:
         """Sets up the data loaders for training"""
-        return InputDataset(
+        return self.dataset_type(
             dataparser_outputs=self.train_dataparser_outputs,
             scale_factor=self.config.camera_res_scale_factor,
         )
 
-    def create_eval_dataset(self) -> InputDataset:
+    def create_eval_dataset(self) -> TDataset:
         """Sets up the data loaders for evaluation"""
-        return InputDataset(
+        return self.dataset_type(
             dataparser_outputs=self.dataparser.get_dataparser_outputs(split=self.test_split),
             scale_factor=self.config.camera_res_scale_factor,
         )
 
     def _get_pixel_sampler(  # pylint: disable=no-self-use
-        self, dataset: InputDataset, *args: Any, **kwargs: Any
+        self, dataset: TDataset, *args: Any, **kwargs: Any
     ) -> PixelSampler:
         """Infer pixel sampler to use."""
         if self.config.patch_size > 1:

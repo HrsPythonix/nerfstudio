@@ -1,4 +1,4 @@
-# Copyright 2022 The Nerfstudio Team. All rights reserved.
+# Copyright 2022 the Regents of the University of California, Nerfstudio Team and contributors. All rights reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -28,8 +28,8 @@ from nerfstudio.cameras.cameras import Cameras, CameraType
 from nerfstudio.viewer.server.utils import three_js_perspective_camera_focal_length
 
 
-def get_interpolated_camera_path(cameras: Cameras, steps: int) -> Cameras:
-    """Generate a camera path between two cameras.
+def get_interpolated_camera_path(cameras: Cameras, steps: int, order_poses: bool) -> Cameras:
+    """Generate a camera path between two cameras. Uses the camera type of the first camera
 
     Args:
         cameras: Cameras object containing intrinsics of all cameras.
@@ -38,11 +38,18 @@ def get_interpolated_camera_path(cameras: Cameras, steps: int) -> Cameras:
     Returns:
         A new set of cameras along a path.
     """
-    Ks = cameras.get_intrinsics_matrices().cpu().numpy()
-    poses = cameras.camera_to_worlds.cpu().numpy()
-    poses, Ks = get_interpolated_poses_many(poses, Ks, steps_per_transition=steps)
+    Ks = cameras.get_intrinsics_matrices()
+    poses = cameras.camera_to_worlds
+    poses, Ks = get_interpolated_poses_many(poses, Ks, steps_per_transition=steps, order_poses=order_poses)
 
-    cameras = Cameras(fx=Ks[:, 0, 0], fy=Ks[:, 1, 1], cx=Ks[0, 0, 2], cy=Ks[0, 1, 2], camera_to_worlds=poses)
+    cameras = Cameras(
+        fx=Ks[:, 0, 0],
+        fy=Ks[:, 1, 1],
+        cx=Ks[0, 0, 2],
+        cy=Ks[0, 1, 2],
+        camera_type=cameras.camera_type[0],
+        camera_to_worlds=poses,
+    )
     return cameras
 
 
@@ -189,10 +196,6 @@ def get_path_from_json(camera_path: Dict[str, Any]) -> Cameras:
 
     image_height = camera_path["render_height"]
     image_width = camera_path["render_width"]
-    if "camera_type" in camera_path:
-        camera_type = camera_path["camera_type"]
-    else:
-        camera_type = "perspective"
 
     if "camera_type" not in camera_path:
         camera_type = CameraType.PERSPECTIVE
