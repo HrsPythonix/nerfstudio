@@ -1,4 +1,4 @@
-# Copyright 2022 the Regents of the University of California, Nerfstudio Team and contributors. All rights reserved.
+# Copyright 2022 The Nerfstudio Team. All rights reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -18,8 +18,7 @@ Code for embeddings.
 
 
 import torch
-from jaxtyping import Shaped
-from torch import Tensor
+from torchtyping import TensorType
 
 from nerfstudio.field_components.base_field_component import FieldComponent
 
@@ -46,7 +45,7 @@ class Embedding(FieldComponent):
         """Return the mean of the embedding weights along a dim."""
         return self.embedding.weight.mean(dim)
 
-    def forward(self, in_tensor: Shaped[Tensor, "*batch input_dim"]) -> Shaped[Tensor, "*batch output_dim"]:
+    def forward(self, in_tensor: TensorType[..., "input_dim"]) -> TensorType[..., "output_dim"]:
         """Call forward
 
         Args:

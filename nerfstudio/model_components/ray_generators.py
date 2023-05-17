@@ -1,4 +1,4 @@
-# Copyright 2022 the Regents of the University of California, Nerfstudio Team and contributors. All rights reserved.
+# Copyright 2022 The Nerfstudio Team. All rights reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -15,8 +15,8 @@
 """
 Ray generator.
 """
-from jaxtyping import Int
-from torch import Tensor, nn
+from torch import nn
+from torchtyping import TensorType
 
 from nerfstudio.cameras.camera_optimizers import CameraOptimizer
 from nerfstudio.cameras.cameras import Cameras
@@ -39,7 +39,7 @@ class RayGenerator(nn.Module):
         self.disable_distortion = disable_distortion
         self.register_buffer("image_coords", cameras.get_image_coords(), persistent=False)
 
-    def forward(self, ray_indices: Int[Tensor, "num_rays 3"]) -> RayBundle:
+    def forward(self, ray_indices: TensorType["num_rays", 3]) -> RayBundle:
         """Index into the cameras to generate the rays.
 
         Args:

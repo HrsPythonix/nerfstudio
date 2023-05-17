@@ -1,4 +1,4 @@
-# Copyright 2022 the Regents of the University of California, Nerfstudio Team and contributors. All rights reserved.
+# Copyright 2022 The Nerfstudio Team. All rights reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -18,14 +18,15 @@ a signed distance function (SDF) for surface representation is used to help with
 """
 
 from dataclasses import dataclass, field
-from typing import Dict, Literal, Optional, Type
+from typing import Dict, Optional, Type
 
 import numpy as np
 import torch
 import torch.nn.functional as F
-from jaxtyping import Float
-from torch import Tensor, nn
+from torch import nn
 from torch.nn.parameter import Parameter
+from torchtyping import TensorType
+from typing_extensions import Literal
 
 from nerfstudio.cameras.rays import RaySamples
 from nerfstudio.field_components.embedding import Embedding
@@ -52,11 +53,11 @@ class LearnedVariance(nn.Module):
         super().__init__()
         self.register_parameter("variance", nn.Parameter(init_val * torch.ones(1), requires_grad=True))
 
-    def forward(self, x: Float[Tensor, "1"]) -> Float[Tensor, "1"]:
+    def forward(self, x: TensorType[1]) -> TensorType[1]:
         """Returns current variance value"""
         return torch.ones([len(x), 1], device=x.device) * torch.exp(self.variance * 10.0)
 
-    def get_variance(self) -> Float[Tensor, "1"]:
+    def get_variance(self) -> TensorType[1]:
         """return current variance value"""
         return torch.exp(self.variance * 10.0).clip(1e-6, 1e6)
 
@@ -79,13 +80,13 @@ class SDFFieldConfig(FieldConfig):
     appearance_embedding_dim: int = 32
     """Dimension of appearance embedding"""
     use_appearance_embedding: bool = False
-    """Whether to use appearance embedding"""
+    """Dimension of appearance embedding"""
     bias: float = 0.8
-    """Sphere size of geometric initialization"""
+    """sphere size of geometric initializaion"""
     geometric_init: bool = True
     """Whether to use geometric initialization"""
     inside_outside: bool = True
-    """Whether to revert signed distance value, set to True for indoor scene"""
+    """whether to revert signed distance value, set to True for indoor scene"""
     weight_norm: bool = True
     """Whether to use weight norm for linear layer"""
     use_grid_feature: bool = False
@@ -128,7 +129,7 @@ class SDFField(Field):
     def __init__(
         self,
         config: SDFFieldConfig,
-        aabb: Float[Tensor, "2 3"],
+        aabb: TensorType[2, 3],
         num_images: int,
         use_average_appearance_embedding: bool = False,
         spatial_distortion: Optional[SpatialDistortion] = None,
@@ -252,12 +253,12 @@ class SDFField(Field):
         """Set the anneal value for the proposal network."""
         self._cos_anneal_ratio = anneal
 
-    def forward_geonetwork(self, inputs: Float[Tensor, "*batch 3"]) -> Float[Tensor, "*batch geo_features+1"]:
+    def forward_geonetwork(self, inputs: TensorType[..., 3]) -> TensorType[..., "geo-features+1"]:
         """forward the geonetwork"""
         if self.use_grid_feature:
             positions = self.spatial_distortion(inputs)
-            # map range [-2, 2] to [0, 1]
-            positions = (positions + 2.0) / 4.0
+
+            positions = (positions + 1.0) / 2.0
             feature = self.encoding(positions)
         else:
             feature = torch.zeros_like(inputs[:, :1].repeat(1, self.encoding.n_output_dims))
@@ -281,8 +282,7 @@ class SDFField(Field):
                 outputs = self.softplus(outputs)
         return outputs
 
-    # TODO: fix ... in shape annotations.
-    def get_sdf(self, ray_samples: RaySamples) -> Float[Tensor, "num_samples ... 1"]:
+    def get_sdf(self, ray_samples: RaySamples) -> TensorType["num_samples", -1, 1]:
         """predict the sdf value for ray samples"""
         positions = ray_samples.frustums.get_start_positions()
         positions_flat = positions.view(-1, 3)
@@ -293,9 +293,9 @@ class SDFField(Field):
     def get_alpha(
         self,
         ray_samples: RaySamples,
-        sdf: Optional[Float[Tensor, "num_samples ... 1"]] = None,
-        gradients: Optional[Float[Tensor, "num_samples ... 1"]] = None,
-    ) -> Float[Tensor, "num_samples ... 1"]:
+        sdf: Optional[TensorType["num_samples", -1, 1]] = None,
+        gradients: Optional[TensorType["num_samples", -1, 1]] = None,
+    ) -> TensorType["num_samples", -1, 1]:
         """compute alpha from sdf as in NeuS"""
         if sdf is None or gradients is None:
             inputs = ray_samples.frustums.get_start_positions()
@@ -345,12 +345,12 @@ class SDFField(Field):
 
     def get_colors(
         self,
-        points: Float[Tensor, "*batch 3"],
-        directions: Float[Tensor, "*batch 3"],
-        normals: Float[Tensor, "*batch 3"],
-        geo_features: Float[Tensor, "*batch geo_feat_dim"],
-        camera_indices: Tensor,
-    ) -> Float[Tensor, "*batch 3"]:
+        points: TensorType[..., 3],
+        directions: TensorType[..., 3],
+        normals: TensorType[..., 3],
+        geo_features: TensorType[..., "geo-feat-dim"],
+        camera_indices: TensorType,
+    ) -> TensorType[..., 3]:
         """compute colors"""
         d = self.direction_encoding(directions)
 
@@ -396,9 +396,9 @@ class SDFField(Field):
     def get_outputs(
         self,
         ray_samples: RaySamples,
-        density_embedding: Optional[Tensor] = None,
+        density_embedding: Optional[TensorType] = None,
         return_alphas: bool = False,
-    ) -> Dict[FieldHeadNames, Tensor]:
+    ) -> Dict[FieldHeadNames, TensorType]:
         """compute output of ray samples"""
         if ray_samples.camera_indices is None:
             raise AttributeError("Camera indices are not provided.")
@@ -446,7 +446,7 @@ class SDFField(Field):
 
     def forward(
         self, ray_samples: RaySamples, compute_normals: bool = False, return_alphas: bool = False
-    ) -> Dict[FieldHeadNames, Tensor]:
+    ) -> Dict[FieldHeadNames, TensorType]:
         """Evaluates the field at points along the ray.
 
         Args:

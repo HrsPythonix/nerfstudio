@@ -1,4 +1,4 @@
-# Copyright 2022 the Regents of the University of California, Nerfstudio Team and contributors. All rights reserved.
+# Copyright 2022 The Nerfstudio Team. All rights reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -23,10 +23,12 @@ import glob
 import os
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import List, Literal, Tuple, Type
+from typing import List, Tuple, Type
 
 import numpy as np
 import torch
+from rich.console import Console
+from typing_extensions import Literal
 
 from nerfstudio.cameras import camera_utils
 from nerfstudio.cameras.cameras import Cameras, CameraType
@@ -37,8 +39,10 @@ from nerfstudio.data.dataparsers.base_dataparser import (
 )
 from nerfstudio.data.scene_box import SceneBox
 
+CONSOLE = Console(width=120)
 
-def _find_files(directory: str, exts: List[str]):
+
+def find_files(directory: str, exts: List[str]):
     """Find all files in a directory that have a certain file extension.
 
     Args:
@@ -90,8 +94,8 @@ def get_camera_params(
     split_dir = f"{scene_dir}/{split}"
 
     # camera parameters files
-    intrinsics_files = _find_files(f"{split_dir}/intrinsics", exts=["*.txt"])
-    pose_files = _find_files(f"{split_dir}/pose", exts=["*.txt"])
+    intrinsics_files = find_files(f"{split_dir}/intrinsics", exts=["*.txt"])
+    pose_files = find_files(f"{split_dir}/pose", exts=["*.txt"])
 
     num_cams = len(pose_files)
 
@@ -215,12 +219,12 @@ class NeRFOSR(DataParser):
         )
 
         # --- images ---
-        image_filenames = _find_files(f"{split_dir}/rgb", exts=["*.png", "*.jpg", "*.JPG", "*.PNG"])
+        image_filenames = find_files(f"{split_dir}/rgb", exts=["*.png", "*.jpg", "*.JPG", "*.PNG"])
 
         # --- masks ---
         mask_filenames = []
         if self.config.use_masks:
-            mask_filenames = _find_files(f"{split_dir}/mask", exts=["*.png", "*.jpg", "*.JPG", "*.PNG"])
+            mask_filenames = find_files(f"{split_dir}/mask", exts=["*.png", "*.jpg", "*.JPG", "*.PNG"])
 
         dataparser_outputs = DataparserOutputs(
             image_filenames=image_filenames,

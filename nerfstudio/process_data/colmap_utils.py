@@ -1,4 +1,4 @@
-# Copyright 2022 the Regents of the University of California, Nerfstudio Team and contributors. All rights reserved.
+# Copyright 2022 The Nerfstudio Team. All rights reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -13,19 +13,21 @@
 # limitations under the License.
 
 """
-Tools supporting the execution of COLMAP and preparation of COLMAP-based datasets for nerfstudio training.
+Tools supporting the execution of COLMAP and preparation of COLMAP-based datasets for nerstudio training.
 """
 
 import json
 from pathlib import Path
-from typing import Any, Dict, Literal, Optional
+from typing import Any, Dict, Optional
 
 import appdirs
 import cv2
 import numpy as np
 import requests
 import torch
+from rich.console import Console
 from rich.progress import track
+from typing_extensions import Literal
 
 # TODO(1480) use pycolmap instead of colmap_parsing_utils
 # import pycolmap
@@ -37,8 +39,10 @@ from nerfstudio.data.utils.colmap_parsing_utils import (
 )
 from nerfstudio.process_data.process_data_utils import CameraModel
 from nerfstudio.utils import colormaps
-from nerfstudio.utils.rich_utils import CONSOLE, status
+from nerfstudio.utils.rich_utils import status
 from nerfstudio.utils.scripts import run_command
+
+CONSOLE = Console(width=120)
 
 
 def get_colmap_version(colmap_cmd: str, default_version=3.8) -> float:
@@ -111,7 +115,9 @@ def run_colmap(
     colmap_version = get_colmap_version(colmap_cmd)
 
     colmap_database_path = colmap_dir / "database.db"
-    colmap_database_path.unlink(missing_ok=True)
+    if colmap_database_path.exists():
+        # Can't use missing_ok argument because of Python 3.7 compatibility.
+        colmap_database_path.unlink()
 
     # Feature extraction
     feature_extractor_cmd = [

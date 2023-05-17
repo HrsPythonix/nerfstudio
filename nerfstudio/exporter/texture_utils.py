@@ -1,4 +1,4 @@
-# Copyright 2022 the Regents of the University of California, Nerfstudio Team and contributors. All rights reserved.
+# Copyright 2022 The Nerfstudio Team. All rights reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -22,26 +22,29 @@ from __future__ import annotations
 
 import math
 from pathlib import Path
-from typing import Literal, Optional, Tuple, Union
+from typing import Optional, Tuple, Union
 
 import mediapy as media
 import numpy as np
 import torch
 import xatlas
-from jaxtyping import Float
-from torch import Tensor
+from rich.console import Console
+from torchtyping import TensorType
+from typing_extensions import Literal
 
 from nerfstudio.cameras.rays import RayBundle
 from nerfstudio.exporter.exporter_utils import Mesh
 from nerfstudio.pipelines.base_pipeline import Pipeline
-from nerfstudio.utils.rich_utils import CONSOLE, get_progress
+from nerfstudio.utils.rich_utils import get_progress
+
+CONSOLE = Console(width=120)
 
 TORCH_DEVICE = Union[torch.device, str]  # pylint: disable=invalid-name
 
 
 def get_parallelogram_area(
-    p: Float[Tensor, "*bs 2"], v0: Float[Tensor, "*bs 2"], v1: Float[Tensor, "*bs 2"]
-) -> Float[Tensor, "*bs"]:
+    p: TensorType["bs":..., 2], v0: TensorType["bs":..., 2], v1: TensorType["bs":..., 2]
+) -> TensorType["bs":...]:
     """Given three 2D points, return the area defined by the parallelogram. I.e., 2x the triangle area.
 
     Args:
@@ -57,7 +60,7 @@ def get_parallelogram_area(
 
 def get_texture_image(
     num_pixels_w: int, num_pixels_h: int, device: TORCH_DEVICE
-) -> Tuple[Float[Tensor, "num_pixels_h num_pixels_w 2"], Float[Tensor, "num_pixels_h num_pixels_w 2"]]:
+) -> Tuple[TensorType["num_pixels_h", "num_pixels_w", 2], TensorType["num_pixels_h", "num_pixels_w", 2]]:
     """Get a texture image."""
     px_w = 1.0 / num_pixels_w
     px_h = 1.0 / num_pixels_h
@@ -77,14 +80,14 @@ def get_texture_image(
 
 
 def unwrap_mesh_per_uv_triangle(
-    vertices: Float[Tensor, "num_verts 3"],
-    faces: Float[Tensor, "num_faces 3"],
-    vertex_normals: Float[Tensor, "num_verts 3"],
+    vertices: TensorType["num_verts", 3],
+    faces: TensorType["num_faces", 3],
+    vertex_normals: TensorType["num_verts", 3],
     px_per_uv_triangle: int,
 ) -> Tuple[
-    Float[Tensor, "num_faces 3 2"],
-    Float[Tensor, "num_pixels num_pixels 3"],
-    Float[Tensor, "num_pixels num_pixels num_pixels"],
+    TensorType["num_faces", 3, 2],
+    TensorType["num_pixels", "num_pixels", 3],
+    TensorType["num_pixels", "num_pixels", "num_pixels"],
 ]:
     """Unwrap a mesh to a UV texture. This is done by making a grid of rectangles in the UV texture map
     and then having two triangles per rectangle. Then the texture image is rasterized and uses barycentric
@@ -213,15 +216,15 @@ def unwrap_mesh_per_uv_triangle(
 
 
 def unwrap_mesh_with_xatlas(
-    vertices: Float[Tensor, "num_verts 3"],
-    faces: Float[Tensor, "num_faces 3 torch.long"],
-    vertex_normals: Float[Tensor, "num_verts 3"],
+    vertices: TensorType["num_verts", 3],
+    faces: TensorType["num_faces", 3, torch.long],
+    vertex_normals: TensorType["num_verts", 3],
     num_pixels_per_side=1024,
     num_faces_per_barycentric_chunk=10,
 ) -> Tuple[
-    Float[Tensor, "num_faces 3 2"],
-    Float[Tensor, "num_pixels num_pixels 3"],
-    Float[Tensor, "num_pixels num_pixels num_pixels"],
+    TensorType["num_faces", 3, 2],
+    TensorType["num_pixels", "num_pixels", 3],
+    TensorType["num_pixels", "num_pixels", "num_pixels"],
 ]:
     """Unwrap a mesh using xatlas. We use xatlas to unwrap the mesh with UV coordinates.
     Then we rasterize the mesh with a square pattern. We interpolate the XYZ and normal
@@ -398,7 +401,6 @@ def export_textured_mesh(
     camera_indices = torch.zeros_like(origins[..., 0:1])
     nears = torch.zeros_like(origins[..., 0:1])
     fars = torch.ones_like(origins[..., 0:1]) * raylen
-    directions_norm = torch.ones_like(origins[..., 0:1])  # for surface model
     camera_ray_bundle = RayBundle(
         origins=origins,
         directions=directions,
@@ -406,7 +408,6 @@ def export_textured_mesh(
         camera_indices=camera_indices,
         nears=nears,
         fars=fars,
-        metadata={"directions_norm": directions_norm},
     )
 
     CONSOLE.print("Creating texture image by rendering with NeRF...")

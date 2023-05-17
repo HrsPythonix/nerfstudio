@@ -1,4 +1,4 @@
-# Copyright 2022 the Regents of the University of California, Nerfstudio Team and contributors. All rights reserved.
+# Copyright 2022 The Plenoptix Team. All rights reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -23,6 +23,7 @@ from typing import Callable, Dict, Union
 
 import torch
 import torch.utils.data
+from torch._six import string_classes
 
 from nerfstudio.cameras.cameras import Cameras
 
@@ -118,7 +119,7 @@ def nerfstudio_collate(
         return torch.tensor(batch, dtype=torch.float64)
     elif isinstance(elem, int):
         return torch.tensor(batch)
-    elif isinstance(elem, (str, bytes)):
+    elif isinstance(elem, string_classes):
         return batch
     elif isinstance(elem, collections.abc.Mapping):
         try:

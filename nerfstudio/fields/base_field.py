@@ -1,4 +1,4 @@
-# Copyright 2022 the Regents of the University of California, Nerfstudio Team and contributors. All rights reserved.
+# Copyright 2022 The Nerfstudio Team. All rights reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -21,8 +21,8 @@ from dataclasses import dataclass, field
 from typing import Dict, Optional, Tuple, Type
 
 import torch
-from jaxtyping import Float, Shaped
-from torch import Tensor, nn
+from torch import nn
+from torchtyping import TensorType
 
 from nerfstudio.cameras.rays import Frustums, RaySamples
 from nerfstudio.configs.base_config import InstantiateConfig
@@ -45,7 +45,7 @@ class Field(nn.Module):
         self._sample_locations = None
         self._density_before_activation = None
 
-    def density_fn(self, positions: Shaped[Tensor, "*bs 3"]) -> Shaped[Tensor, "*bs 1"]:
+    def density_fn(self, positions: TensorType["bs":..., 3]) -> TensorType["bs":..., 1]:
         """Returns only the density. Used primarily with the density grid.
 
         Args:
@@ -65,16 +65,14 @@ class Field(nn.Module):
         return density
 
     @abstractmethod
-    def get_density(
-        self, ray_samples: RaySamples
-    ) -> Tuple[Shaped[Tensor, "*batch 1"], Float[Tensor, "*batch num_features"]]:
+    def get_density(self, ray_samples: RaySamples) -> Tuple[TensorType[..., 1], TensorType[..., "num_features"]]:
         """Computes and returns the densities. Returns a tensor of densities and a tensor of features.
 
         Args:
             ray_samples: Samples locations to compute density.
         """
 
-    def get_normals(self) -> Float[Tensor, "*batch 3"]:
+    def get_normals(self) -> TensorType[..., 3]:
         """Computes and returns a tensor of normals.
 
         Args:
@@ -99,8 +97,8 @@ class Field(nn.Module):
 
     @abstractmethod
     def get_outputs(
-        self, ray_samples: RaySamples, density_embedding: Optional[Tensor] = None
-    ) -> Dict[FieldHeadNames, Tensor]:
+        self, ray_samples: RaySamples, density_embedding: Optional[TensorType] = None
+    ) -> Dict[FieldHeadNames, TensorType]:
         """Computes and returns the colors. Returns output field values.
 
         Args:
@@ -108,7 +106,7 @@ class Field(nn.Module):
             density_embedding: Density embeddings to condition on.
         """
 
-    def forward(self, ray_samples: RaySamples, compute_normals: bool = False) -> Dict[FieldHeadNames, Tensor]:
+    def forward(self, ray_samples: RaySamples, compute_normals: bool = False) -> Dict[FieldHeadNames, TensorType]:
         """Evaluates the field at points along the ray.
 
         Args:
@@ -134,7 +132,7 @@ class Field(nn.Module):
         return field_outputs
 
 
-def shift_directions_for_tcnn(directions: Float[Tensor, "*bs 3"]) -> Float[Tensor, "*bs 3"]:
+def shift_directions_for_tcnn(directions: TensorType["bs":..., 3]) -> TensorType["bs":..., 3]:
     """Shift directions from [-1, 1] to [0, 1]
 
     Args:

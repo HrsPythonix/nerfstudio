@@ -1,4 +1,4 @@
-# Copyright 2022 the Regents of the University of California, Nerfstudio Team and contributors. All rights reserved.
+# Copyright 2022 The Nerfstudio Team. All rights reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -18,13 +18,14 @@ Encoding functions
 
 import itertools
 from abc import abstractmethod
-from typing import Literal, Optional, Sequence
+from typing import Optional, Sequence
 
 import numpy as np
 import torch
 import torch.nn.functional as F
-from jaxtyping import Float, Int, Shaped
-from torch import Tensor, nn
+from torch import nn
+from torchtyping import TensorType
+from typing_extensions import Literal
 
 from nerfstudio.field_components.base_field_component import FieldComponent
 from nerfstudio.utils.math import components_from_spherical_harmonics, expected_sin
@@ -51,7 +52,7 @@ class Encoding(FieldComponent):
         super().__init__(in_dim=in_dim)
 
     @abstractmethod
-    def forward(self, in_tensor: Shaped[Tensor, "*bs input_dim"]) -> Shaped[Tensor, "*bs output_dim"]:
+    def forward(self, in_tensor: TensorType["bs":..., "input_dim"]) -> TensorType["bs":..., "output_dim"]:
         """Call forward and returns and processed tensor
 
         Args:
@@ -68,7 +69,7 @@ class Identity(Encoding):
             raise ValueError("Input dimension has not been set")
         return self.in_dim
 
-    def forward(self, in_tensor: Shaped[Tensor, "*bs input_dim"]) -> Shaped[Tensor, "*bs output_dim"]:
+    def forward(self, in_tensor: TensorType["bs":..., "input_dim"]) -> TensorType["bs":..., "output_dim"]:
         return in_tensor
 
 
@@ -92,7 +93,7 @@ class ScalingAndOffset(Encoding):
             raise ValueError("Input dimension has not been set")
         return self.in_dim
 
-    def forward(self, in_tensor: Float[Tensor, "*bs input_dim"]) -> Float[Tensor, "*bs output_dim"]:
+    def forward(self, in_tensor: TensorType["bs":..., "input_dim"]) -> TensorType["bs":..., "output_dim"]:
         return self.scaling * in_tensor + self.offset
 
 
@@ -128,9 +129,9 @@ class NeRFEncoding(Encoding):
 
     def forward(
         self,
-        in_tensor: Float[Tensor, "*bs input_dim"],
-        covs: Optional[Float[Tensor, "*bs input_dim input_dim"]] = None,
-    ) -> Float[Tensor, "*bs output_dim"]:
+        in_tensor: TensorType["bs":..., "input_dim"],
+        covs: Optional[TensorType["bs":..., "input_dim", "input_dim"]] = None,
+    ) -> TensorType["bs":..., "output_dim"]:
         """Calculates NeRF encoding. If covariances are provided the encodings will be integrated as proposed
             in mip-NeRF.
 
@@ -140,9 +141,9 @@ class NeRFEncoding(Encoding):
         Returns:
             Output values will be between -1 and 1
         """
-        scaled_in_tensor = 2 * torch.pi * in_tensor  # scale to [0, 2pi]
+        in_tensor = 2 * torch.pi * in_tensor  # scale to [0, 2pi]
         freqs = 2 ** torch.linspace(self.min_freq, self.max_freq, self.num_frequencies).to(in_tensor.device)
-        scaled_inputs = scaled_in_tensor[..., None] * freqs  # [..., "input_dim", "num_scales"]
+        scaled_inputs = in_tensor[..., None] * freqs  # [..., "input_dim", "num_scales"]
         scaled_inputs = scaled_inputs.view(*scaled_inputs.shape[:-2], -1)  # [..., "input_dim" * "num_scales"]
 
         if covs is None:
@@ -187,9 +188,9 @@ class RFFEncoding(Encoding):
 
     def forward(
         self,
-        in_tensor: Float[Tensor, "*bs input_dim"],
-        covs: Optional[Float[Tensor, "*bs input_dim input_dim"]] = None,
-    ) -> Float[Tensor, "*bs output_dim"]:
+        in_tensor: TensorType["bs":..., "input_dim"],
+        covs: Optional[TensorType["bs":..., "input_dim", "input_dim"]] = None,
+    ) -> TensorType["bs":..., "output_dim"]:
         """Calculates RFF encoding. If covariances are provided the encodings will be integrated as proposed
             in mip-NeRF.
 
@@ -200,8 +201,8 @@ class RFFEncoding(Encoding):
         Returns:
             Output values will be between -1 and 1
         """
-        scaled_in_tensor = 2 * torch.pi * in_tensor  # scale to [0, 2pi]
-        scaled_inputs = scaled_in_tensor @ self.b_matrix  # [..., "num_frequencies"]
+        in_tensor = 2 * torch.pi * in_tensor  # scale to [0, 2pi]
+        scaled_inputs = in_tensor @ self.b_matrix  # [..., "num_frequencies"]
 
         if covs is None:
             encoded_inputs = torch.sin(torch.cat([scaled_inputs, scaled_inputs + torch.pi / 2.0], dim=-1))
@@ -285,7 +286,7 @@ class HashEncoding(Encoding):
     def get_out_dim(self) -> int:
         return self.num_levels * self.features_per_level
 
-    def hash_fn(self, in_tensor: Int[Tensor, "*bs num_levels 3"]) -> Shaped[Tensor, "*bs num_levels"]:
+    def hash_fn(self, in_tensor: TensorType["bs":..., "num_levels", 3]) -> TensorType["bs":..., "num_levels"]:
         """Returns hash tensor using method described in Instant-NGP
 
         Args:
@@ -304,7 +305,7 @@ class HashEncoding(Encoding):
         x += self.hash_offset.to(x.device)
         return x
 
-    def pytorch_fwd(self, in_tensor: Float[Tensor, "*bs input_dim"]) -> Float[Tensor, "*bs output_dim"]:
+    def pytorch_fwd(self, in_tensor: TensorType["bs":..., "input_dim"]) -> TensorType["bs":..., "output_dim"]:
         """Forward pass using pytorch. Significantly slower than TCNN implementation."""
 
         assert in_tensor.shape[-1] == 3
@@ -347,7 +348,7 @@ class HashEncoding(Encoding):
 
         return torch.flatten(encoded_value, start_dim=-2, end_dim=-1)  # [..., num_levels * features_per_level]
 
-    def forward(self, in_tensor: Float[Tensor, "*bs input_dim"]) -> Float[Tensor, "*bs output_dim"]:
+    def forward(self, in_tensor: TensorType["bs":..., "input_dim"]) -> TensorType["bs":..., "output_dim"]:
         if TCNN_EXISTS and self.tcnn_encoding is not None:
             return self.tcnn_encoding(in_tensor)
         return self.pytorch_fwd(in_tensor)
@@ -374,7 +375,7 @@ class TensorCPEncoding(Encoding):
     def get_out_dim(self) -> int:
         return self.num_components
 
-    def forward(self, in_tensor: Float[Tensor, "*bs input_dim"]) -> Float[Tensor, "*bs output_dim"]:
+    def forward(self, in_tensor: TensorType["bs":..., "input_dim"]) -> TensorType["bs":..., "output_dim"]:
         line_coord = torch.stack([in_tensor[..., 2], in_tensor[..., 1], in_tensor[..., 0]])  # [3, ...]
         line_coord = torch.stack([torch.zeros_like(line_coord), line_coord], dim=-1)  # [3, ...., 2]
 
@@ -412,8 +413,8 @@ class TensorVMEncoding(Encoding):
         init_scale: Initialization scale.
     """
 
-    plane_coef: Float[Tensor, "3 num_components resolution resolution"]
-    line_coef: Float[Tensor, "3 num_components resolution 1"]
+    plane_coef: TensorType[3, "num_components", "resolution", "resolution"]
+    line_coef: TensorType[3, "num_components", "resolution", 1]
 
     def __init__(
         self,
@@ -432,7 +433,7 @@ class TensorVMEncoding(Encoding):
     def get_out_dim(self) -> int:
         return self.num_components * 3
 
-    def forward(self, in_tensor: Float[Tensor, "*bs input_dim"]) -> Float[Tensor, "*bs output_dim"]:
+    def forward(self, in_tensor: TensorType["bs":..., "input_dim"]) -> TensorType["bs":..., "output_dim"]:
         """Compute encoding for each position in in_positions
 
         Args:
@@ -497,7 +498,7 @@ class TriplaneEncoding(Encoding):
         product: Whether to use the element-wise product of the planes or the sum
     """
 
-    plane_coef: Float[Tensor, "3 num_components resolution resolution"]
+    plane_coef: TensorType[3, "num_components", "resolution", "resolution"]
 
     def __init__(
         self,
@@ -520,7 +521,7 @@ class TriplaneEncoding(Encoding):
     def get_out_dim(self) -> int:
         return self.num_components
 
-    def forward(self, in_tensor: Float[Tensor, "*bs 3"]) -> Float[Tensor, "*bs num_components featuresize"]:
+    def forward(self, in_tensor: TensorType["bs":..., 3]) -> TensorType["bs":..., "num_components", "featuresize"]:
         """Sample features from this encoder. Expects in_tensor to be in range [0, resolution]"""
 
         original_shape = in_tensor.shape
@@ -617,7 +618,7 @@ class KPlanesEncoding(Encoding):
     def get_out_dim(self) -> int:
         return self.num_components
 
-    def forward(self, in_tensor: Float[Tensor, "*bs input_dim"]) -> Float[Tensor, "*bs output_dim"]:
+    def forward(self, in_tensor: TensorType["bs":..., "input_dim"]) -> TensorType["bs":..., "output_dim"]:
         """Sample features from this encoder. Expects ``in_tensor`` to be in range [-1, 1]"""
         original_shape = in_tensor.shape
 
@@ -656,5 +657,5 @@ class SHEncoding(Encoding):
         return self.levels**2
 
     @torch.no_grad()
-    def forward(self, in_tensor: Float[Tensor, "*bs input_dim"]) -> Float[Tensor, "*bs output_dim"]:
+    def forward(self, in_tensor: TensorType["bs":..., "input_dim"]) -> TensorType["bs":..., "output_dim"]:
         return components_from_spherical_harmonics(levels=self.levels, directions=in_tensor)

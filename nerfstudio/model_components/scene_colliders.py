@@ -1,4 +1,4 @@
-# Copyright 2022 the Regents of the University of California, Nerfstudio Team and contributors. All rights reserved.
+# Copyright 2022 The Nerfstudio Team. All rights reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -19,8 +19,8 @@ Scene Colliders
 from __future__ import annotations
 
 import torch
-from jaxtyping import Float
-from torch import Tensor, nn
+from torch import nn
+from torchtyping import TensorType
 
 from nerfstudio.cameras.rays import RayBundle
 from nerfstudio.data.scene_box import SceneBox
@@ -57,7 +57,7 @@ class AABBBoxCollider(SceneCollider):
         self.near_plane = near_plane
 
     def _intersect_with_aabb(
-        self, rays_o: Float[Tensor, "num_rays 3"], rays_d: Float[Tensor, "num_rays 3"], aabb: Float[Tensor, "2 3"]
+        self, rays_o: TensorType["num_rays", 3], rays_d: TensorType["num_rays", 3], aabb: TensorType[2, 3]
     ):
         """Returns collection of valid rays within a specified near/far bounding box along with a mask
         specifying which rays are valid

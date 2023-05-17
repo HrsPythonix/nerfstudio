@@ -1,4 +1,4 @@
-# Copyright 2022 the Regents of the University of California, Nerfstudio Team and contributors. All rights reserved.
+# Copyright 2022 The Nerfstudio Team. All rights reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -18,10 +18,11 @@
 
 from abc import abstractmethod
 from dataclasses import dataclass, field
-from typing import Literal, Optional, Tuple, Type
+from typing import Optional, Type
 
 import numpy as np
 from torch.optim import Optimizer, lr_scheduler
+from typing_extensions import Literal
 
 from nerfstudio.configs.base_config import InstantiateConfig
 
@@ -53,34 +54,6 @@ class Scheduler:
         Returns:
             The scheduler object.
         """
-
-
-@dataclass
-class MultiStepSchedulerConfig(SchedulerConfig):
-    """Config for multi step scheduler where lr decays by gamma every milestone"""
-
-    _target: Type = field(default_factory=lambda: MultiStepScheduler)
-    """target class to instantiate"""
-    max_steps: int = 1000000
-    """The maximum number of steps."""
-    gamma: float = 0.33
-    """The learning rate decay factor."""
-    milestones: Tuple[int, ...] = (500000, 750000, 900000)
-    """The milestone steps at which to decay the learning rate."""
-
-
-class MultiStepScheduler(Scheduler):
-    """Multi step scheduler where lr decays by gamma every milestone"""
-
-    config: MultiStepSchedulerConfig
-
-    def get_scheduler(self, optimizer: Optimizer, lr_init: float) -> lr_scheduler._LRScheduler:
-        scheduler = lr_scheduler.MultiStepLR(
-            optimizer=optimizer,
-            milestones=self.config.milestones,
-            gamma=self.config.gamma,
-        )
-        return scheduler
 
 
 @dataclass
@@ -138,7 +111,7 @@ class ExponentialDecayScheduler(Scheduler):
 
 @dataclass
 class CosineDecaySchedulerConfig(SchedulerConfig):
-    """Config for cosine decay schedule"""
+    """Basic scheduler config with self-defined exponential decay schedule"""
 
     _target: Type = field(default_factory=lambda: CosineDecayScheduler)
     """target class to instantiate"""
@@ -151,7 +124,7 @@ class CosineDecaySchedulerConfig(SchedulerConfig):
 
 
 class CosineDecayScheduler(Scheduler):
-    """Cosine decay scheduler with linear warmup"""
+    """Starts with a flat lr schedule until it reaches N epochs then applies a given scheduler"""
 
     config: CosineDecaySchedulerConfig
 

@@ -8,7 +8,7 @@ TODO: Explanation of each component
 .. toctree::
 
     config
-    data/index
+    data
     fields
     field_components/index
     models

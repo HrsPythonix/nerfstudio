@@ -16,9 +16,7 @@ from nerfstudio.data.utils.colmap_parsing_utils import (
     write_cameras_binary,
     write_images_binary,
 )
-from nerfstudio.process_data.images_to_nerfstudio_dataset import (
-    ImagesToNerfstudioDataset,
-)
+from scripts.process_data import ProcessImages
 
 
 def random_quaternion(num_poses: int):
@@ -81,10 +79,8 @@ def test_process_images_skip_colmap(tmp_path: Path):
     (tmp_path / "mocked_bin" / "colmap").touch(mode=0o777)
     (tmp_path / "mocked_bin" / "ffmpeg").touch(mode=0o777)
 
-    # Convert images into a NerfStudio dataset
-    cmd = ImagesToNerfstudioDataset(
-        data=tmp_path / "images", output_dir=tmp_path / "nerfstudio", colmap_model_path=sparse_path, skip_colmap=True
-    )
+    # Run ProcessImages
+    cmd = ProcessImages(tmp_path / "images", tmp_path / "nerfstudio", colmap_model_path=sparse_path, skip_colmap=True)
     cmd.main()
     os.environ["PATH"] = old_path
 

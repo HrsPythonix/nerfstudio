@@ -40,6 +40,7 @@ TODO(1480) Delete this file when moving to pycolmap.
 #
 # Author: Johannes L. Schoenberger (jsch-at-demuc-dot-de)
 
+import argparse
 import collections
 import os
 import struct

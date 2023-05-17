@@ -72,6 +72,7 @@ def test_nerfstudio_dataparser_split_filelist(mocked_dataset):
         json.dump(data, f)
 
     from nerfstudio.data.dataparsers.nerfstudio_dataparser import (
+        DataparserOutputs,
         Nerfstudio,
         NerfstudioDataParserConfig,
     )

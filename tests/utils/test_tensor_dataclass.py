@@ -36,9 +36,9 @@ def test_init():
 
         dummy_vals: torch.Tensor = None
 
-    Dummy(dummy_vals=torch.ones(1))
+    dummy = Dummy(dummy_vals=torch.ones(1))
     with pytest.raises(ValueError):
-        Dummy()
+        dummy = Dummy()
 
 
 def test_broadcasting():

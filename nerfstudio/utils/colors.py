@@ -1,4 +1,4 @@
-# Copyright 2022 the Regents of the University of California, Nerfstudio Team and contributors. All rights reserved.
+# Copyright 2022 The Nerfstudio Team. All rights reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -16,8 +16,7 @@
 from typing import Union
 
 import torch
-from jaxtyping import Float
-from torch import Tensor
+from torchtyping import TensorType
 
 WHITE = torch.tensor([1.0, 1.0, 1.0])
 BLACK = torch.tensor([0.0, 0.0, 0.0])
@@ -34,13 +33,13 @@ COLORS_DICT = {
 }
 
 
-def get_color(color: Union[str, list]) -> Float[Tensor, "3"]:
+def get_color(color: Union[str, list]) -> TensorType[3]:
     """
     Args:
-        Color as a string or a rgb list
+        color (Union[str, list]): Color as a string or a rgb list
 
     Returns:
-        Parsed color
+        TensorType[3]: Parsed color
     """
     if isinstance(color, str):
         color = color.lower()

@@ -1,4 +1,4 @@
-# Copyright 2022 the Regents of the University of California, Nerfstudio Team and contributors. All rights reserved.
+# Copyright 2022 The Nerfstudio Team. All rights reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -21,8 +21,9 @@ from typing import Dict, Optional, Tuple
 
 import numpy as np
 import torch
-from torch import Tensor, nn
+from torch import nn
 from torch.nn.parameter import Parameter
+from torchtyping import TensorType
 
 from nerfstudio.cameras.rays import RaySamples
 from nerfstudio.data.scene_box import SceneBox
@@ -82,7 +83,7 @@ class TCNNNerfactoField(Field):
 
     def __init__(
         self,
-        aabb: Tensor,
+        aabb: TensorType,
         num_images: int,
         num_layers: int = 2,
         hidden_dim: int = 64,
@@ -227,7 +228,7 @@ class TCNNNerfactoField(Field):
             },
         )
 
-    def get_density(self, ray_samples: RaySamples) -> Tuple[Tensor, Tensor]:
+    def get_density(self, ray_samples: RaySamples) -> Tuple[TensorType, TensorType]:
         """Computes and returns the densities."""
         if self.spatial_distortion is not None:
             positions = ray_samples.frustums.get_positions()
@@ -257,8 +258,8 @@ class TCNNNerfactoField(Field):
             return density, base_mlp_out
 
     def get_outputs(
-        self, ray_samples: RaySamples, density_embedding: Optional[Tensor] = None
-    ) -> Dict[FieldHeadNames, Tensor]:
+        self, ray_samples: RaySamples, density_embedding: Optional[TensorType] = None
+    ) -> Dict[FieldHeadNames, TensorType]:
         assert density_embedding is not None
         outputs = {}
         if ray_samples.camera_indices is None:
@@ -351,7 +352,7 @@ class TorchNerfactoField(Field):
 
     def __init__(
         self,
-        aabb: Tensor,
+        aabb: TensorType,
         num_images: int,
         position_encoding: Encoding = HashEncoding(),
         direction_encoding: Encoding = SHEncoding(),
@@ -394,20 +395,20 @@ class TorchNerfactoField(Field):
         for field_head in self.field_heads:
             field_head.set_in_dim(self.mlp_head.get_out_dim())  # type: ignore
 
-    def get_density(self, ray_samples: RaySamples) -> Tuple[Tensor, Tensor]:
+    def get_density(self, ray_samples: RaySamples) -> Tuple[TensorType, TensorType]:
         if self.spatial_distortion is not None:
             positions = ray_samples.frustums.get_positions()
             positions = self.spatial_distortion(positions)
         else:
             positions = ray_samples.frustums.get_positions()
-        encoded_xyz = self.position_encoding(positions.view(-1, 3)).to(torch.float32)
-        base_mlp_out = self.mlp_base(encoded_xyz).view(*ray_samples.frustums.shape, -1)
+        encoded_xyz = self.position_encoding(positions)
+        base_mlp_out = self.mlp_base(encoded_xyz)
         density = self.field_output_density(base_mlp_out)
         return density, base_mlp_out
 
     def get_outputs(
-        self, ray_samples: RaySamples, density_embedding: Optional[Tensor] = None
-    ) -> Dict[FieldHeadNames, Tensor]:
+        self, ray_samples: RaySamples, density_embedding: Optional[TensorType] = None
+    ) -> Dict[FieldHeadNames, TensorType]:
         outputs_shape = ray_samples.frustums.directions.shape[:-1]
 
         if ray_samples.camera_indices is None:
@@ -423,20 +424,18 @@ class TorchNerfactoField(Field):
 
         outputs = {}
         for field_head in self.field_heads:
-            directions = shift_directions_for_tcnn(ray_samples.frustums.directions)
-            directions_flat = directions.view(-1, 3)
-            encoded_dir = self.direction_encoding(directions_flat)
+            encoded_dir = self.direction_encoding(ray_samples.frustums.directions)
             mlp_out = self.mlp_head(
                 torch.cat(
                     [
-                        encoded_dir.view(-1, self.direction_encoding.get_out_dim()),
-                        density_embedding.view(-1, self.mlp_base.get_out_dim()),  # type:ignore
+                        encoded_dir,
+                        density_embedding,  # type:ignore
                         embedded_appearance.view(-1, self.appearance_embedding_dim),
                     ],
                     dim=-1,  # type:ignore
                 )
             )
-            outputs[field_head.field_head_name] = field_head(mlp_out).view(*outputs_shape, -1).to(directions)
+            outputs[field_head.field_head_name] = field_head(mlp_out)
         return outputs
 
 
