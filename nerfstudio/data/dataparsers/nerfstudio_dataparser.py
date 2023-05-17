@@ -35,7 +35,6 @@ from nerfstudio.data.scene_box import SceneBox
 from nerfstudio.utils.io import load_from_json
 from nerfstudio.utils.rich_utils import CONSOLE
 
-CONSOLE = Console(width=120)
 MAX_AUTO_RESOLUTION = 2400
 
 
