@@ -74,8 +74,6 @@ class Nerfstudio(DataParser):
     downscale_factor: Optional[int] = None
 
     def _generate_dataparser_outputs(self, split="train"):
-        # pylint: disable=too-many-statements
-
         assert self.config.data.exists(), f"Data directory {self.config.data} does not exist."
 
         if self.config.data.suffix == ".json":
@@ -107,7 +105,6 @@ class Nerfstudio(DataParser):
         mask_filenames = []
         depth_filenames = []
         poses = []
-        num_skipped_image_filenames = 0
 
         fx_fixed = "fl_x" in meta
         fy_fixed = "fl_y" in meta
@@ -131,9 +128,6 @@ class Nerfstudio(DataParser):
         for frame in meta["frames"]:
             filepath = Path(frame["file_path"])
             fname = self._get_fname(filepath, data_dir)
-            if not fname.exists():
-                num_skipped_image_filenames += 1
-                continue
 
             if not fx_fixed:
                 assert "fl_x" in frame, "fx not specified in frame"
@@ -181,14 +175,6 @@ class Nerfstudio(DataParser):
                 depth_fname = self._get_fname(depth_filepath, data_dir, downsample_folder_prefix="depths_")
                 depth_filenames.append(depth_fname)
 
-        if num_skipped_image_filenames >= 0:
-            CONSOLE.log(f"Skipping {num_skipped_image_filenames} files in dataset split {split}.")
-        assert (
-            len(image_filenames) != 0
-        ), """
-        No image files found. 
-        You should check the file_paths in the transforms.json file to make sure they are correct.
-        """
         assert len(mask_filenames) == 0 or (
             len(mask_filenames) == len(image_filenames)
         ), """

@@ -24,7 +24,7 @@ from jaxtyping import Int
 from torch import Tensor
 
 
-class PixelSampler:  # pylint: disable=too-few-public-methods
+class PixelSampler:
     """Samples 'pixel_batch's from 'image_batch's.
 
     Args:
@@ -45,7 +45,7 @@ class PixelSampler:  # pylint: disable=too-few-public-methods
         """
         self.num_rays_per_batch = num_rays_per_batch
 
-    def sample_method(  # pylint: disable=no-self-use
+    def sample_method(
         self,
         batch_size: int,
         num_images: int,
@@ -203,7 +203,7 @@ class PixelSampler:  # pylint: disable=too-few-public-methods
         return pixel_batch
 
 
-class EquirectangularPixelSampler(PixelSampler):  # pylint: disable=too-few-public-methods
+class EquirectangularPixelSampler(PixelSampler):
     """Samples 'pixel_batch's from 'image_batch's. Assumes images are
     equirectangular and the sampling is done uniformly on the sphere.
 
@@ -213,7 +213,7 @@ class EquirectangularPixelSampler(PixelSampler):  # pylint: disable=too-few-publ
     """
 
     # overrides base method
-    def sample_method(  # pylint: disable=no-self-use
+    def sample_method(
         self,
         batch_size: int,
         num_images: int,
@@ -244,7 +244,7 @@ class EquirectangularPixelSampler(PixelSampler):  # pylint: disable=too-few-publ
         return indices
 
 
-class PatchPixelSampler(PixelSampler):  # pylint: disable=too-few-public-methods
+class PatchPixelSampler(PixelSampler):
     """Samples 'pixel_batch's from 'image_batch's. Samples square patches
     from the images randomly. Useful for patch-based losses.
 
@@ -261,7 +261,7 @@ class PatchPixelSampler(PixelSampler):  # pylint: disable=too-few-public-methods
         super().__init__(num_rays, keep_full_image, **kwargs)
 
     def set_num_rays_per_batch(self, num_rays_per_batch: int):
-        """Set the number of rays to sample per batch. Overrided to deal with patch-based sampling.
+        """Set the number of rays to sample per batch. Overridden to deal with patch-based sampling.
 
         Args:
             num_rays_per_batch: number of rays to sample per batch
@@ -269,7 +269,7 @@ class PatchPixelSampler(PixelSampler):  # pylint: disable=too-few-public-methods
         self.num_rays_per_batch = (num_rays_per_batch // (self.patch_size**2)) * (self.patch_size**2)
 
     # overrides base method
-    def sample_method(  # pylint: disable=no-self-use
+    def sample_method(
         self,
         batch_size: int,
         num_images: int,
@@ -278,7 +278,7 @@ class PatchPixelSampler(PixelSampler):  # pylint: disable=too-few-public-methods
         mask: Optional[Tensor] = None,
         device: Union[torch.device, str] = "cpu",
     ) -> Int[Tensor, "batch_size 3"]:
-        if mask:
+        if isinstance(mask, Tensor):
             # Note: if there is a mask, sampling reduces back to uniform sampling
             indices = super().sample_method(batch_size, num_images, image_height, image_width, mask=mask, device=device)
         else:

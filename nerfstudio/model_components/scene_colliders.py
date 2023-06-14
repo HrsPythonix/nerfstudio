@@ -24,6 +24,7 @@ from torch import Tensor, nn
 
 from nerfstudio.cameras.rays import RayBundle
 from nerfstudio.data.scene_box import SceneBox
+from nerfstudio.utils.misc import torch_compile
 
 
 class SceneCollider(nn.Module):
@@ -33,7 +34,7 @@ class SceneCollider(nn.Module):
         self.kwargs = kwargs
         super().__init__()
 
-    def set_nears_and_fars(self, ray_bundle) -> RayBundle:
+    def set_nears_and_fars(self, ray_bundle: RayBundle) -> RayBundle:
         """To be implemented."""
         raise NotImplementedError
 
@@ -108,7 +109,7 @@ class AABBBoxCollider(SceneCollider):
         return ray_bundle
 
 
-@torch.jit.script
+@torch_compile(dynamic=True, mode="reduce-overhead")
 def _intersect_with_sphere(
     rays_o: torch.Tensor, rays_d: torch.Tensor, center: torch.Tensor, radius: float = 1.0, near_plane: float = 0.0
 ):
@@ -136,7 +137,7 @@ class SphereCollider(SceneCollider):
 
     Args:
         center: center of sphere to intersect [3]
-        redius: radius of sphere to intersect
+        radius: radius of sphere to intersect
         near_plane: near plane to clamp to
     """
 

@@ -38,7 +38,7 @@ from nerfstudio.fields.base_field import Field, shift_directions_for_tcnn
 
 try:
     import tinycudann as tcnn
-except ImportError:
+except ModuleNotFoundError:
     # tinycudann module doesn't exist
     pass
 
@@ -64,7 +64,7 @@ class NerfplayerNGPField(Field):
             Sometimes we need to disable viewing dependent effects in a dynamic scene, because there is
             ambiguity between being dynamic and viewing dependent effects. For example, the shadow of the camera
             should be a dynamic effect, but may be reconstructed as viewing dependent effects.
-        num_images: number of images, requried if use_appearance_embedding is True
+        num_images: number of images, required if use_appearance_embedding is True
         appearance_embedding_dim: dimension of appearance embedding
         contraction_type: type of contraction
     """
@@ -115,7 +115,7 @@ class NerfplayerNGPField(Field):
             level_dim=features_per_level,
             base_resolution=base_resolution,
             log2_hashmap_size=log2_hashmap_size,
-            desired_resolution=1024 * (self.aabb.max() - self.aabb.min()),
+            desired_resolution=int(1024 * (self.aabb.max() - self.aabb.min())),
         )
         self.mlp_base_decode = tcnn.Network(
             n_input_dims=num_levels * features_per_level,
@@ -201,8 +201,9 @@ class NerfplayerNGPField(Field):
         rgb = self.mlp_head(h).view(*ray_samples.frustums.directions.shape[:-1], -1).to(directions)
         return {FieldHeadNames.RGB: rgb}
 
-    # pylint: disable=arguments-differ
-    def density_fn(self, positions: Float[Tensor, "*bs 3"], times: Float[Tensor, "*bs 1"]) -> Float[Tensor, "*bs 1"]:
+    def density_fn(
+        self, positions: Float[Tensor, "*bs 3"], times: Optional[Float[Tensor, "*bs 1"]] = None
+    ) -> Float[Tensor, "*bs 1"]:
         """Returns only the density. Used primarily with the density grid.
         Overwrite this function since density is time dependent now.
 
