@@ -62,6 +62,8 @@ class NerfstudioDataParserConfig(DataParserConfig):
     """The fraction of images to use for training. The remaining images are for eval."""
     depth_unit_scale_factor: float = 1e-3
     """Scales the depth values to meters. Default value is 0.001 for a millimeter to meter conversion."""
+    custom_split_dataset: bool = False
+    custom_split_part: str = "1"
 
 
 @dataclass
@@ -82,6 +84,24 @@ class Nerfstudio(DataParser):
         else:
             meta = load_from_json(self.config.data / "transforms.json")
             data_dir = self.config.data
+
+        if self.config.custom_split_dataset:
+            frames_num = len(meta["frames"])
+            meta["frames"] = sorted(meta["frames"], key=lambda frame: frame["file_path"])
+            if self.config.custom_split_part == "1":
+                meta["frames"] = meta["frames"][: frames_num // 2]
+            elif self.config.custom_split_part == "2":
+                meta["frames"] = meta["frames"][frames_num // 2 :]
+            elif self.config.custom_split_part == "3":
+                meta["frames"] = meta["frames"][: frames_num // 5 * 3]
+            elif self.config.custom_split_part == "4":
+                meta["frames"] = meta["frames"][frames_num // 5 * 2 :]
+            elif self.config.custom_split_part == "5":
+                meta["frames"] = meta["frames"][:325]
+            elif self.config.custom_split_part == "6":
+                meta["frames"] = meta["frames"][325:]
+            else:
+                meta["frames"] = [frame for frame in meta["frames"] if self.config.custom_split_part in frame["clip"]]
 
         image_filenames = []
         mask_filenames = []
@@ -210,6 +230,8 @@ class Nerfstudio(DataParser):
                 indices = i_train
             elif split in ["val", "test"]:
                 indices = i_eval
+            elif split == "all":
+                indices = i_all
             else:
                 raise ValueError(f"Unknown dataparser split {split}")
 

@@ -69,6 +69,7 @@ def _render_trajectory_video(
     seconds: float = 5.0,
     output_format: Literal["images", "video"] = "video",
     colormap_options: colormaps.ColormapOptions = colormaps.ColormapOptions(),
+    save_depth: bool = False,
 ) -> None:
     """Helper function to create a video of the spiral trajectory.
 
@@ -96,6 +97,10 @@ def _render_trajectory_video(
         TimeRemainingColumn(elapsed_when_finished=True, compact=True),
     )
     output_image_dir = output_filename.parent / output_filename.stem
+    if save_depth:
+        output_depth_dir = output_filename.parent / "depth"
+        output_depth_dir.mkdir(parents=True, exist_ok=True)
+        output_c2ws = []
     if output_format == "images":
         output_image_dir.mkdir(parents=True, exist_ok=True)
     if output_format == "video":
@@ -163,6 +168,17 @@ def _render_trajectory_video(
                             )
                         )
                     writer.add_image(render_image)
+                if save_depth:
+                    output_depth = outputs["depth"].cpu().numpy()
+                    output_depth = output_depth.reshape(output_depth.shape[:-1])
+                    np.save(output_depth_dir / (str(camera_idx).zfill(6) + ".npy"), output_depth)
+
+                    output_c2ws.append(
+                        {
+                            "idx": os.path.basename(str(camera_idx)),
+                            "c2w": cameras.camera_to_worlds[camera_idx].tolist(),
+                        }
+                    )
 
     table = Table(
         title=None,
@@ -177,6 +193,9 @@ def _render_trajectory_video(
         table.add_row("Video", str(output_filename))
     else:
         table.add_row("Images", str(output_image_dir))
+    if save_depth:
+        with open(output_filename.parent / "c2ws_{}.json".format(traj), "w") as f:
+            json.dump(output_c2ws, f)
     CONSOLE.print(Panel(table, title="[bold][green]:tada: Render Complete :tada:[/bold]", expand=False))
 
 
@@ -370,12 +389,53 @@ class RenderInterpolated(BaseRender):
         else:
             cameras = pipeline.datamanager.train_dataset.cameras
 
-        seconds = self.interpolation_steps * len(cameras) / self.frame_rate
-        camera_path = get_interpolated_camera_path(
-            cameras=cameras,
-            steps=self.interpolation_steps,
-            order_poses=self.order_poses,
+        seconds = len(cameras) / self.frame_rate
+        camera_path = cameras
+
+        _render_trajectory_video(
+            pipeline,
+            camera_path,
+            output_filename=self.output_path,
+            rendered_output_names=self.rendered_output_names,
+            rendered_resolution_scaling_factor=1.0 / self.downscale_factor,
+            seconds=seconds,
+            output_format=self.output_format,
+            colormap_options=self.colormap_options,
         )
+
+
+@dataclass
+class RenderDataset(BaseRender):
+    """Render a trajectory that belongs to the dataset."""
+
+    rendered_output_names: List[str] = field(default_factory=lambda: ["rgb"])
+    """Name of the renderer outputs to use. rgb, depth, etc. concatenates them along y axis"""
+    pose_source: Literal["eval", "train", "all"] = "eval"
+    """Pose source to render."""
+    frame_rate: int = 24
+    """Frame rate of the output video."""
+    output_format: Literal["images", "video"] = "video"
+    """How to save output data."""
+
+    def main(self) -> None:
+        """Main function."""
+        _, pipeline, _, _ = eval_setup(
+            self.load_config,
+            eval_num_rays_per_chunk=self.eval_num_rays_per_chunk,
+            test_mode="test",
+        )
+
+        install_checks.check_ffmpeg_installed()
+
+        if self.pose_source == "eval":
+            cameras = pipeline.datamanager.eval_dataset.cameras
+        elif self.pose_source == "train":
+            cameras = pipeline.datamanager.train_dataset.cameras
+        else:
+            cameras = pipeline.datamanager.dataparser.get_dataparser_outputs(split="all").cameras
+
+        seconds = len(cameras) / self.frame_rate
+        camera_path = cameras
 
         _render_trajectory_video(
             pipeline,
@@ -435,6 +495,7 @@ Commands = tyro.conf.FlagConversionOff[
         Annotated[RenderCameraPath, tyro.conf.subcommand(name="camera-path")],
         Annotated[RenderInterpolated, tyro.conf.subcommand(name="interpolate")],
         Annotated[SpiralRender, tyro.conf.subcommand(name="spiral")],
+        Annotated[RenderDataset, tyro.conf.subcommand(name="dataset")],
     ]
 ]
 
