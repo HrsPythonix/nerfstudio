@@ -194,7 +194,7 @@ class NerfactoField(Field):
 
         if self.embedding_appearance != None:
             self.mlp_head = MLP(
-                n_input_dims=self.direction_encoding.get_out_dim() + self.geo_feat_dim + self.appearance_embedding_dim,
+                in_dim=self.direction_encoding.get_out_dim() + self.geo_feat_dim + self.appearance_embedding_dim,
                 num_layers=num_layers_color,
                 layer_width=hidden_dim_color,
                 out_dim=3,
@@ -204,7 +204,7 @@ class NerfactoField(Field):
             )
         else:
             self.mlp_head = MLP(
-                n_input_dims=self.direction_encoding.get_out_dim() + self.geo_feat_dim,
+                in_dim=self.direction_encoding.get_out_dim() + self.geo_feat_dim,
                 num_layers=num_layers_color,
                 layer_width=hidden_dim_color,
                 out_dim=3,
