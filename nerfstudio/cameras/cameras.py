@@ -884,3 +884,9 @@ class Cameras(TensorDataclass):
         self.cy = self.cy * scaling_factor
         self.height = (self.height * scaling_factor).to(torch.int64)
         self.width = (self.width * scaling_factor).to(torch.int64)
+
+    def find_nearest_poses(self, query_pose: Float[Tensor, "3 4"]):
+        pdist = torch.nn.PairwiseDistance(p=2)
+        query_dists = pdist(self.camera_to_worlds[:, :3, 3], query_pose.unsqueeze(0))
+        result_idx = torch.argmin(query_dists)
+        return result_idx

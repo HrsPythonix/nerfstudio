@@ -20,8 +20,8 @@ from __future__ import annotations
 
 import json
 import os
-import struct
 import shutil
+import struct
 import sys
 from contextlib import ExitStack
 from dataclasses import dataclass, field
@@ -35,23 +35,12 @@ import tyro
 from jaxtyping import Float
 from rich import box, style
 from rich.panel import Panel
-from rich.progress import (
-    BarColumn,
-    Progress,
-    TaskProgressColumn,
-    TextColumn,
-    TimeElapsedColumn,
-    TimeRemainingColumn,
-)
+from rich.progress import BarColumn, Progress, TaskProgressColumn, TextColumn, TimeElapsedColumn, TimeRemainingColumn
 from rich.table import Table
 from torch import Tensor
 from typing_extensions import Annotated
 
-from nerfstudio.cameras.camera_paths import (
-    get_interpolated_camera_path,
-    get_path_from_json,
-    get_spiral_path,
-)
+from nerfstudio.cameras.camera_paths import get_interpolated_camera_path, get_path_from_json, get_spiral_path
 from nerfstudio.cameras.cameras import Cameras, CameraType
 from nerfstudio.data.datamanagers.base_datamanager import VanillaDataManager
 from nerfstudio.data.scene_box import SceneBox
@@ -76,6 +65,7 @@ def _render_trajectory_video(
     jpeg_quality: int = 100,
     colormap_options: colormaps.ColormapOptions = colormaps.ColormapOptions(),
     save_depth: bool = False,
+    search_pose: bool = True,
 ) -> None:
     """Helper function to create a video of the spiral trajectory.
 
@@ -111,6 +101,8 @@ def _render_trajectory_video(
         output_depth_dir = output_filename.parent / "depth"
         output_depth_dir.mkdir(parents=True, exist_ok=True)
         output_c2ws = []
+    if search_pose:
+        output_search_res = []
     if output_format == "images":
         output_image_dir.mkdir(parents=True, exist_ok=True)
     if output_format == "video":
@@ -195,6 +187,18 @@ def _render_trajectory_video(
                         }
                     )
 
+                if search_pose:
+                    all_dataparser = pipeline.datamanager.dataparser.get_dataparser_outputs(split="all")
+                    search_pool = all_dataparser.cameras
+                    res_idx = search_pool.find_nearest_poses(cameras.camera_to_worlds[camera_idx])
+                    output_search_res.append(
+                        {
+                            "idx": os.path.basename(str(camera_idx)),
+                            "search_idx": int(res_idx),
+                            "search_name": all_dataparser.image_filenames[res_idx],
+                        }
+                    )
+
     table = Table(
         title=None,
         show_header=False,
@@ -211,6 +215,10 @@ def _render_trajectory_video(
     if save_depth:
         with open(output_filename.parent / "c2ws_{}.json".format(traj), "w") as f:
             json.dump(output_c2ws, f)
+    if search_pose:
+        print(output_search_res)
+        with open(output_filename.parent / "search.json", "w") as f:
+            json.dump(output_search_res, f)
     CONSOLE.print(Panel(table, title="[bold][green]:tada: Render Complete :tada:[/bold]", expand=False))
 
 
