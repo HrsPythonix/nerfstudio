@@ -65,7 +65,7 @@ def _render_trajectory_video(
     jpeg_quality: int = 100,
     colormap_options: colormaps.ColormapOptions = colormaps.ColormapOptions(),
     save_depth: bool = False,
-    search_pose: bool = True,
+    search_pose: bool = False,
 ) -> None:
     """Helper function to create a video of the spiral trajectory.
 
