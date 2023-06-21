@@ -887,6 +887,6 @@ class Cameras(TensorDataclass):
 
     def find_nearest_poses(self, query_pose: Float[Tensor, "3 4"]):
         pdist = torch.nn.PairwiseDistance(p=2)
-        query_dists = pdist(self.camera_to_worlds[:, :3, 3], query_pose.unsqueeze(0))
+        query_dists = pdist(self.camera_to_worlds[:, :3, 3], query_pose[:, :3, 3].unsqueeze(0))
         result_idx = torch.argmin(query_dists)
         return result_idx
