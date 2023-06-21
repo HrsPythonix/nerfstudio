@@ -354,6 +354,8 @@ class RenderCameraPath(BaseRender):
     """Filename of the camera path to render."""
     output_format: Literal["images", "video"] = "video"
     """How to save output data."""
+    save_depth: bool = False
+    search_pose: bool = False
 
     def main(self) -> None:
         """Main function."""
@@ -399,6 +401,8 @@ class RenderCameraPath(BaseRender):
             image_format=self.image_format,
             jpeg_quality=self.jpeg_quality,
             colormap_options=self.colormap_options,
+            save_depth=self.save_depth,
+            search_pose=self.search_pose,
         )
 
         if camera_path.camera_type[0] == CameraType.OMNIDIRECTIONALSTEREO_L.value:
