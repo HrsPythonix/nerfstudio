@@ -216,7 +216,6 @@ def _render_trajectory_video(
         with open(output_filename.parent / "c2ws_{}.json".format(traj), "w") as f:
             json.dump(output_c2ws, f)
     if search_pose:
-        print(output_search_res)
         with open(output_filename.parent / "search.json", "w") as f:
             json.dump(output_search_res, f)
     CONSOLE.print(Panel(table, title="[bold][green]:tada: Render Complete :tada:[/bold]", expand=False))
