@@ -22,6 +22,7 @@ from enum import Enum, auto
 from typing import Dict, List, Literal, Optional, Tuple, Union
 
 import cv2
+import numpy as np
 import torch
 import torchvision
 from jaxtyping import Float, Int, Shaped
@@ -885,8 +886,34 @@ class Cameras(TensorDataclass):
         self.height = (self.height * scaling_factor).to(torch.int64)
         self.width = (self.width * scaling_factor).to(torch.int64)
 
-    def find_nearest_poses(self, query_pose: Float[Tensor, "3 4"]):
-        pdist = torch.nn.PairwiseDistance(p=2)
-        query_dists = pdist(self.camera_to_worlds[:, :3, 3], query_pose[:, :3, 3].unsqueeze(0))
-        result_idx = torch.argmin(query_dists)
-        return result_idx
+    def find_nearest_k_poses(self, query_pose: Float[Tensor, "3 4"], k=8):
+        c2w_mat = query_pose.cpu().numpy()
+        n0 = np.matmul(c2w_mat[:3, :3], np.array([[0, 0, 1]]).T).T
+        n0 = n0 / np.linalg.norm(n0)
+        t0 = c2w_mat[:3, 3]
+
+        c2c_dist = []
+        normal_dot = []
+
+        search_poses = self.camera_to_worlds.cpu().numpy()
+        for j in range(search_poses.shape[0]):
+            c2w_mat_j = search_poses[j]
+            n1 = np.matmul(c2w_mat_j[:3, :3], np.array([[0, 0, 1]]).T).T
+            n1 = n1 / np.linalg.norm(n1)
+            t1 = c2w_mat_j[:3, 3]
+
+            normal_dot.append(1.0 - (n0 * n1).sum())
+            c2c_dist.append(math.sqrt(((t0 - t1) ** 2).sum()))
+
+        c2c_dist = np.array(c2c_dist)
+        normal_dot = np.array(normal_dot)
+
+        weights = c2c_dist + 50 * normal_dot
+        score = torch.from_numpy(weights)
+        score = 1.0 / (score + 1e-6)
+
+        weight_topK, ind_topK = torch.topk(score, k=k, dim=0)
+        ind_topK = ind_topK.numpy().astype(np.int64)
+
+        res = [jk for jk in ind_topK]
+        return res

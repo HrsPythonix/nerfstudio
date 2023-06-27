@@ -190,12 +190,12 @@ def _render_trajectory_video(
                 if search_pose:
                     all_dataparser = pipeline.datamanager.dataparser.get_dataparser_outputs(split="all")
                     search_pool = all_dataparser.cameras
-                    res_idx = search_pool.find_nearest_poses(cameras.camera_to_worlds[camera_idx])
+                    res_idx_list = search_pool.find_nearest_poses(cameras.camera_to_worlds[camera_idx])
                     output_search_res.append(
                         {
                             "idx": os.path.basename(str(camera_idx)),
-                            "search_idx": int(res_idx),
-                            "search_name": all_dataparser.image_filenames[res_idx],
+                            "search_idxs": res_idx_list,
+                            "search_name": [all_dataparser.image_filenames[res_idx] for res_idx in res_idx_list],
                         }
                     )
 
