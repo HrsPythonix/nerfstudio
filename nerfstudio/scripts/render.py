@@ -195,7 +195,7 @@ def _render_trajectory_video(
                         {
                             "idx": os.path.basename(str(camera_idx)),
                             "search_idxs": res_idx_list,
-                            "search_name": [all_dataparser.image_filenames[res_idx] for res_idx in res_idx_list],
+                            "search_name": [str(all_dataparser.image_filenames[res_idx]) for res_idx in res_idx_list],
                         }
                     )
 
