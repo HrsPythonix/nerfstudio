@@ -915,5 +915,5 @@ class Cameras(TensorDataclass):
         weight_topK, ind_topK = torch.topk(score, k=k, dim=0)
         ind_topK = ind_topK.numpy().astype(np.int64)
 
-        res = [jk for jk in ind_topK]
+        res = [jk.item() for jk in ind_topK]
         return res
