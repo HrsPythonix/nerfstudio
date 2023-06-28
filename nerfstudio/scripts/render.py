@@ -120,6 +120,22 @@ def _render_trajectory_video(
 
         with progress:
             for camera_idx in progress.track(range(cameras.size), description=""):
+                if search_pose:
+                    all_dataparser = pipeline.datamanager.dataparser.get_dataparser_outputs(split="all")
+                    search_pool = all_dataparser.cameras
+                    res_idx_list = search_pool.find_nearest_k_poses(cameras.camera_to_worlds[camera_idx])
+                    output_search_res.append(
+                        {
+                            "idx": os.path.basename(str(camera_idx)),
+                            "search_idxs": res_idx_list,
+                            "search_name": [str(all_dataparser.image_filenames[res_idx]) for res_idx in res_idx_list],
+                        }
+                    )
+            if search_pose:
+                with open(output_filename.parent / "search.json", "w") as f:
+                    json.dump(output_search_res, f)
+
+            for camera_idx in progress.track(range(cameras.size), description=""):
                 aabb_box = None
                 if crop_data is not None:
                     bounding_box_min = crop_data.center - crop_data.scale / 2.0
@@ -186,19 +202,6 @@ def _render_trajectory_video(
                             "c2w": cameras.camera_to_worlds[camera_idx].tolist(),
                         }
                     )
-
-                if search_pose:
-                    all_dataparser = pipeline.datamanager.dataparser.get_dataparser_outputs(split="all")
-                    search_pool = all_dataparser.cameras
-                    res_idx_list = search_pool.find_nearest_k_poses(cameras.camera_to_worlds[camera_idx])
-                    output_search_res.append(
-                        {
-                            "idx": os.path.basename(str(camera_idx)),
-                            "search_idxs": res_idx_list,
-                            "search_name": [str(all_dataparser.image_filenames[res_idx]) for res_idx in res_idx_list],
-                        }
-                    )
-
     table = Table(
         title=None,
         show_header=False,
@@ -215,9 +218,6 @@ def _render_trajectory_video(
     if save_depth:
         with open(output_filename.parent / "c2ws_{}.json".format(traj), "w") as f:
             json.dump(output_c2ws, f)
-    if search_pose:
-        with open(output_filename.parent / "search.json", "w") as f:
-            json.dump(output_search_res, f)
     CONSOLE.print(Panel(table, title="[bold][green]:tada: Render Complete :tada:[/bold]", expand=False))
 
 
