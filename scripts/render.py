@@ -12,8 +12,10 @@ import struct
 import sys
 import time
 import traceback
+import uuid
 from contextlib import ExitStack
 from dataclasses import dataclass, field
+from datetime import datetime
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
 
@@ -290,6 +292,8 @@ def render_task(
     rendered_output_names: List[str],
     upsampler,
     post_sr,
+    ref_sr,
+    init_colmap_ori_dir,
     scale_width: Optional[int] = None,
     scale_height: Optional[int] = None,
 ):
@@ -304,6 +308,17 @@ def render_task(
     )
 
     with progress:
+        camera_paths_info = []
+
+        if ref_sr:
+            ref_sr_work_dir = f"/home/user/tmp/{datetime.now()}_{uuid.uuid1()}"
+            render_path = os.path.join(ref_sr_work_dir, 'renders')
+            render_img_path = os.path.join(render_path, 'images')
+            os.makedirs(ref_sr_work_dir, exist_ok=True)
+            os.makedirs(render_path, exist_ok=True)
+            os.makedirs(render_img_path, exist_ok=True)
+            CONSOLE.print(f"ref_sr_work_dir created in {ref_sr_work_dir}", justify="center")
+
         for cam_idx in progress.track(range(cameras.size), description=""):
             camera_ray_bundle = cameras.generate_rays(camera_indices=cam_idx)
             with torch.no_grad():
@@ -325,7 +340,42 @@ def render_task(
                     render_image = sr_realesrgan(
                         render_image, upsampler, scale_width=scale_width, scale_height=scale_height
                     )
-                media.write_image(save_list[cam_idx], render_image)
+                
+                if ref_sr:
+                    cam_info = {}
+                    cam_info["camera_to_world"] = cameras.camera_to_worlds[cam_idx].tolist()
+                    cam_info["fx"] = cameras.fx[cam_idx].tolist()
+                    cam_info["fy"] = cameras.fy[cam_idx].tolist()
+                    cam_info["cx"] = cameras.cx[cam_idx].tolist()
+                    cam_info["cy"] = cameras.cy[cam_idx].tolist()
+                    cam_info["image_name"] = f"{cam_idx}.png"
+
+                    media.write_image(os.path.join(render_img_path, cam_info["image_name"]), render_image)
+                    camera_paths_info.append(cam_info)
+                else:    
+                    media.write_image(save_list[cam_idx], render_image)
+        if ref_sr:
+            with open(os.path.join(render_path, "camera_paths.json"), "w") as f:
+                json.dump(camera_paths_info, f)
+            
+            ref_sr_output_dir = os.path.join(render_path, "output")
+            ref_sr_cmd = "/home/user/MRefSR/anaconda3/envs/mmlab113/bin/python3 /home/user/MRefSR/MRefSRLXK/ss_one_folder_MRefSR.py "
+            ref_sr_cmd += f"--work_dir {ref_sr_work_dir} "
+            ref_sr_cmd += f"--init_colmap_ori_dir {init_colmap_ori_dir} "
+            ref_sr_cmd += f"--on_the_fly_video_dir {render_path} "
+            ref_sr_cmd += f"--out_dir_name output"
+
+            ref_sr_exit_code = os.system(ref_sr_cmd)
+            if ref_sr_exit_code != 0:
+                CONSOLE.print(f"Error: ref_sr failed with code {ref_sr_exit_code}. Exiting.")
+                exit(ref_sr_exit_code)
+
+            for img in os.listdir(ref_sr_output_dir):
+                img_idx = int(img.split('.')[0])
+                mv_exit_code = os.system(f'mv {os.path.join(ref_sr_output_dir, img)} {save_list[img_idx]}')
+                if mv_exit_code != 0:
+                    CONSOLE.print(f"Error: ref_sr mv failed with code {mv_exit_code}. Exiting.")
+                    exit(mv_exit_code)
 
 
 def sr_realesrgan(img, upsampler, scale_width: Optional[int] = None, scale_height: Optional[int] = None):
@@ -386,6 +436,8 @@ def start_server(
     z_offset: float,
     upsampler,
     post_sr,
+    ref_sr: bool = False,
+    init_colmap_ori_dir: str = "",
     scale_width: Optional[int] = None,
     scale_height: Optional[int] = None,
 ):
@@ -443,6 +495,8 @@ def start_server(
                         rendered_output_names,
                         upsampler,
                         post_sr,
+                        ref_sr,
+                        init_colmap_ori_dir,
                         scale_width,
                         scale_height,
                     )
@@ -563,6 +617,10 @@ class RenderTrajectory:
     disable_distortion: bool = False
     # save depth
     save_depth: bool = False
+    # init_colmap_ori_dir arg used in refsr
+    init_colmap_ori_dir: str = ""
+    # ref_sr postprocess
+    ref_sr: bool = False
 
     def main(self) -> None:
         """Main function."""
@@ -669,6 +727,8 @@ class RenderTrajectory:
                 self.z_offset,
                 self.upsampler,
                 self.post_sr,
+                ref_sr=self.ref_sr,
+                init_colmap_ori_dir=self.init_colmap_ori_dir,
                 scale_width=self.scale_width,
                 scale_height=self.scale_height,
             )
