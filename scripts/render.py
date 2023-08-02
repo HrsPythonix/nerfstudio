@@ -15,7 +15,6 @@ import traceback
 import uuid
 from contextlib import ExitStack
 from dataclasses import dataclass, field
-from datetime import datetime
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
 
@@ -311,7 +310,7 @@ def render_task(
         camera_paths_info = []
 
         if ref_sr:
-            ref_sr_work_dir = f"/home/user/tmp/{datetime.now()}_{uuid.uuid1()}"
+            ref_sr_work_dir = f"/home/user/tmp/{uuid.uuid1()}"
             render_path = os.path.join(ref_sr_work_dir, 'renders')
             render_img_path = os.path.join(render_path, 'images')
             os.makedirs(ref_sr_work_dir, exist_ok=True)
