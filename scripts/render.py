@@ -616,14 +616,12 @@ class RenderTrajectory:
     disable_distortion: bool = False
     # save depth
     save_depth: bool = False
-    # init_colmap_ori_dir arg used in refsr
-    init_colmap_ori_dir: str = ""
     # ref_sr postprocess
     ref_sr: bool = False
 
     def main(self) -> None:
         """Main function."""
-        _, pipeline, _ = eval_setup(
+        _config, pipeline, _ = eval_setup(
             self.load_config,
             eval_num_rays_per_chunk=self.eval_num_rays_per_chunk,
             test_mode="test" if self.traj == "spiral" or "circle" or "server" or "interpolate" else "inference",
@@ -714,6 +712,7 @@ class RenderTrajectory:
                 traj=self.traj,
             )
         else:
+            init_colmap_ori_dir = _config.data
             start_server(
                 pipeline,
                 self.task_dir,
@@ -727,7 +726,7 @@ class RenderTrajectory:
                 self.upsampler,
                 self.post_sr,
                 ref_sr=self.ref_sr,
-                init_colmap_ori_dir=self.init_colmap_ori_dir,
+                init_colmap_ori_dir=init_colmap_ori_dir,
                 scale_width=self.scale_width,
                 scale_height=self.scale_height,
             )
