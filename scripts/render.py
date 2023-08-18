@@ -716,16 +716,16 @@ class RenderTrajectory:
 
     def main(self) -> None:
         """Main function."""
-        if self.use_3dgs:
+        if not self.use_3dgs:
             _config, pipeline, _ = eval_setup(
                 self.load_config,
                 eval_num_rays_per_chunk=self.eval_num_rays_per_chunk,
                 test_mode="test" if self.traj == "spiral" or "circle" or "server" or "interpolate" else "inference",
             )
-            if self.model_3dgs == "/mnt/datadisk0/risheng/NS_data/outputs":
-                self.model_3dgs = os.path.join(os.listdir(self.model_3dgs)[0])
         else:
             _config, pipeline = None, None
+            if self.model_3dgs == "/mnt/datadisk0/risheng/NS_data/outputs":
+                self.model_3dgs = os.path.join(os.listdir(self.model_3dgs)[0])
 
         if self.traj != "server":
             install_checks.check_ffmpeg_installed()
