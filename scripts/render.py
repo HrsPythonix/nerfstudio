@@ -358,7 +358,7 @@ def render_task_by_3dgs(cameras: Cameras, save_list: List[str], model_3dgs: str,
     with open(pose_info_path, 'w') as f:
         json.dump(pose_info, f)
 
-    tdgs_cmd = "/home/user/MRefSR/anaconda3/envs/gaussian-splatting/bin/python3 /home/user/gaussian-splatting/render.py "
+    tdgs_cmd = "/home/user/MRefSR/anaconda3/envs/gaussian_splatting/bin/python3 /home/user/gaussian-splatting/render.py "
     tdgs_cmd += f"--model {model_3dgs} "
     tdgs_cmd += f"-s {data_3dgs} "
     tdgs_cmd += f"--skip_loading --skip_train --skip_test "
