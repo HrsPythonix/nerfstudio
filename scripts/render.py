@@ -100,10 +100,10 @@ class nerfstudio_to_colmap_coord():
         for idx in range(cameras.size):
             image_name = f"{idx}.png" # not use
             RR,TT = self.change_one_pose(cameras.camera_to_worlds[idx].tolist())
-            fx = cameras.fx.tolist()[0]
-            fy = cameras.fy.tolist()[0]
-            cx = cameras.cx.tolist()[0]
-            cy = cameras.cy.tolist()[0]
+            fx = cameras.fx[idx].tolist()[0]
+            fy = cameras.fy[idx].tolist()[0]
+            cx = cameras.cx[idx].tolist()[0]
+            cy = cameras.cy[idx].tolist()[0]
             image_width = cx * 2
             image_height = cy * 2
 
@@ -352,6 +352,7 @@ def render_task_by_3dgs(cameras: Cameras, save_list: List[str], model_3dgs: str,
 
     tdgs_work_dir = f"/home/user/tmp/{uuid.uuid1()}"
     os.makedirs(tdgs_work_dir, exist_ok=True)
+    CONSOLE.print(f"3dgs tmp dir created in {tdgs_work_dir}")
 
     pose_info_path = os.path.join(tdgs_work_dir, 'pose_info.json')
     with open(pose_info_path, 'w') as f:
