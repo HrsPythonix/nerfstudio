@@ -16,7 +16,7 @@ import uuid
 from contextlib import ExitStack
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Dict, List, Optional, Tuple, Union
 
 import cv2
 import mediapy as media
@@ -59,6 +59,69 @@ else:
 
 CONSOLE = Console(width=120)
 
+
+class nerfstudio_to_colmap_coord():
+    def __init__(self ,trans_json):
+        with open(trans_json) as f:
+            design_data = json.load(f)
+        self.nc_trans = np.array(design_data['transform'])
+        self.nc_scale = design_data['scale']
+
+    def nerf_to_colmap(self ,in_nerf_34, trans, scale):
+        trick_R = np.array([[1, -1, -1, ], [1, -1, -1, ], [1, -1, -1, ]])
+        out = np.zeros([3, 4])
+        out[0:3, 0:3] = (trans[0:3, 0:3].T).dot(in_nerf_34[0:3, 0:3] / trick_R)
+        out[0:3, 3] = (trans[0:3, 0:3].T).dot(
+            in_nerf_34[0:3, 3] / scale - trans[0:3, 3])
+        return out
+
+    def trans_inverse(self ,TWC, num_inv=False):
+        # in/out : 3 * 4
+        rr = TWC[0:3, 0:3]
+        tt = TWC[0:3, 3:]
+        if num_inv == False:
+            rr_1 = np.transpose(rr, [1, 0])
+        else:
+            rr_1 = np.linalg.inv(rr)
+        tt_1 = -1 * rr_1.dot(tt)
+        trans1 = np.concatenate((rr_1, tt_1), axis=1)
+        return trans1
+    def change_one_pose(self ,ns_pose ):
+        nerf_TWC = np.eye(4)
+        nerf_TWC[0:3, :] = np.array(ns_pose)
+        colmap_TWC = self.nerf_to_colmap(nerf_TWC, self.nc_trans, self.nc_scale)
+        colmap_TCW = self.trans_inverse(colmap_TWC)
+        RR = np.array(colmap_TWC[0:3, 0:3])
+        TT = np.array(colmap_TCW[0:3, 3])
+        return RR,TT
+
+    def on_the_fly_json_to_colmap_json(self ,cameras: Cameras, save_list: List[str]):
+        pose_info = []
+        for idx in range(cameras.size):
+            image_name = f"{idx}.png" # not use
+            RR,TT = self.change_one_pose(cameras.camera_to_worlds[idx].tolist())
+            fx = cameras.fx.tolist()[0]
+            fy = cameras.fy.tolist()[0]
+            cx = cameras.cx.tolist()[0]
+            cy = cameras.cy.tolist()[0]
+            image_width = cx * 2
+            image_height = cy * 2
+
+            info = {}
+            info['image_name'] = image_name
+            info['output_path'] = save_list[idx]
+            info['rotation'] = RR.tolist()
+            info['location'] = TT.tolist()
+            info['fx'] = fx
+            info['fy'] = fy
+            info['cx'] = cx
+            info['cy'] = cy
+
+            info['image_width'] = image_width
+            info['image_height'] = image_height
+
+            pose_info.append(info)
+        return pose_info
 
 def _render_trajectory_video(
     pipeline: Pipeline,
@@ -283,6 +346,28 @@ xmlns:GSpherical='http://ns.google.com/videos/1.0/spherical/'>
         finally:
             mp4file.close()
 
+def render_task_by_3dgs(cameras: Cameras, save_list: List[str], model_3dgs: str, data_3dgs: str):
+    nsc = nerfstudio_to_colmap_coord(os.path.join(data_3dgs, "dataparser_transforms.json"))
+    pose_info = nsc.on_the_fly_json_to_colmap_json(cameras, save_list)
+
+    tdgs_work_dir = f"/home/user/tmp/{uuid.uuid1()}"
+    os.makedirs(tdgs_work_dir, exist_ok=True)
+
+    pose_info_path = os.path.join(tdgs_work_dir, 'pose_info.json')
+    with open(pose_info_path, 'w') as f:
+        json.dump(pose_info, f)
+
+    tdgs_cmd = "/home/user/MRefSR/anaconda3/envs/gaussian-splatting/bin/python3 /home/user/gaussian-splatting/render.py "
+    tdgs_cmd += f"--model {model_3dgs} "
+    tdgs_cmd += f"-s {data_3dgs} "
+    tdgs_cmd += f"--skip_loading --skip_train --skip_test "
+    tdgs_cmd += f"--render_custom --custom_path_json {pose_info_path}"
+
+    tdgs_exit_code = os.system(tdgs_cmd)
+    if tdgs_exit_code != 0:
+        CONSOLE.print(f"Error: 3dgs failed with code {tdgs_exit_code}. Exiting.")
+        exit(tdgs_exit_code)
+
 
 def render_task(
     cameras: Cameras,
@@ -390,8 +475,7 @@ def UE_coord_to_NeRF(X: float, Y: float, Z: float, scaling: float, z_offset: flo
     return [X / scaling, Y / scaling, Z / scaling + z_offset]
 
 
-def parse_task_json(task_json_path: str, pipeline: Pipeline, scaling: float, z_offset: float):
-    device = pipeline.datamanager.train_image_dataloader.device
+def parse_task_json(task_json_path: str, device: Union[torch.device, str], scaling: float, z_offset: float):
     with open(task_json_path, "r") as f:
         task = json.load(f)
 
@@ -424,7 +508,7 @@ def parse_task_json(task_json_path: str, pipeline: Pipeline, scaling: float, z_o
 
 
 def start_server(
-    pipeline: Pipeline,
+    pipeline: Optional[Pipeline],
     task_dir: str,
     log_path: str,
     query_interval: float,
@@ -436,12 +520,16 @@ def start_server(
     upsampler,
     post_sr,
     ref_sr: bool = False,
+    use_3dgs: bool = False,
+    model_3dgs: str = "",
+    data_3dgs: str = "",
     init_colmap_ori_dir: str = "",
     scale_width: Optional[int] = None,
     scale_height: Optional[int] = None,
 ):
     json_postfix = "*.json"
     last_task = ""
+    device = pipeline.datamanager.train_image_dataloader.device if pipeline is not None else "cpu"
     while True:
         time.sleep(query_interval)
 
@@ -460,7 +548,7 @@ def start_server(
 
             cameras = save_list = None
             try:
-                cameras, save_list = parse_task_json(task, pipeline, scaling, z_offset)
+                cameras, save_list = parse_task_json(task, device, scaling, z_offset)
                 CONSOLE.print("Task %s json parsed!" % (os.path.basename(task)))
             except Exception as e:
                 traceback.print_exc()
@@ -487,18 +575,21 @@ def start_server(
 
             if cameras and save_list:
                 try:
-                    render_task(
-                        cameras,
-                        save_list,
-                        pipeline,
-                        rendered_output_names,
-                        upsampler,
-                        post_sr,
-                        ref_sr,
-                        init_colmap_ori_dir,
-                        scale_width,
-                        scale_height,
-                    )
+                    if not use_3dgs:
+                        render_task(
+                            cameras,
+                            save_list,
+                            pipeline,
+                            rendered_output_names,
+                            upsampler,
+                            post_sr,
+                            ref_sr,
+                            init_colmap_ori_dir,
+                            scale_width,
+                            scale_height,
+                        )
+                    else:
+                        render_task_by_3dgs(cameras, save_list, model_3dgs, data_3dgs)
                     last_task = os.path.basename(task)
                     CONSOLE.print("Task %s rendered!" % (os.path.basename(task)))
                 except Exception as e:
@@ -618,14 +709,23 @@ class RenderTrajectory:
     save_depth: bool = False
     # ref_sr postprocess
     ref_sr: bool = False
+    # use 3d gs to render
+    use_3dgs: bool = False
+    model_3dgs: str = "/mnt/datadisk0/risheng/NS_data/outputs"
+    data_3dgs: str = "/mnt/datadisk0/risheng/NS_data/nerf_data"
 
     def main(self) -> None:
         """Main function."""
-        _config, pipeline, _ = eval_setup(
-            self.load_config,
-            eval_num_rays_per_chunk=self.eval_num_rays_per_chunk,
-            test_mode="test" if self.traj == "spiral" or "circle" or "server" or "interpolate" else "inference",
-        )
+        if self.use_3dgs:
+            _config, pipeline, _ = eval_setup(
+                self.load_config,
+                eval_num_rays_per_chunk=self.eval_num_rays_per_chunk,
+                test_mode="test" if self.traj == "spiral" or "circle" or "server" or "interpolate" else "inference",
+            )
+            if self.model_3dgs == "/mnt/datadisk0/risheng/NS_data/outputs":
+                self.model_3dgs = os.path.join(os.listdir(self.model_3dgs)[0])
+        else:
+            _config, pipeline = None, None
 
         if self.traj != "server":
             install_checks.check_ffmpeg_installed()
@@ -712,7 +812,7 @@ class RenderTrajectory:
                 traj=self.traj,
             )
         else:
-            init_colmap_ori_dir = _config.data
+            init_colmap_ori_dir = str(_config.data) if _config is not None else ""
             start_server(
                 pipeline,
                 self.task_dir,
@@ -726,6 +826,7 @@ class RenderTrajectory:
                 self.upsampler,
                 self.post_sr,
                 ref_sr=self.ref_sr,
+                use_3dgs=self.use_3dgs,
                 init_colmap_ori_dir=init_colmap_ori_dir,
                 scale_width=self.scale_width,
                 scale_height=self.scale_height,
