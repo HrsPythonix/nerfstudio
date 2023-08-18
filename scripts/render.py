@@ -364,6 +364,7 @@ def render_task_by_3dgs(cameras: Cameras, save_list: List[str], model_3dgs: str,
     tdgs_cmd += f"--skip_loading --skip_train --skip_test "
     tdgs_cmd += f"--render_custom --custom_path_json {pose_info_path}"
 
+    CONSOLE.print(f"Excuting 3D-GS: {tdgs_cmd}")
     tdgs_exit_code = os.system(tdgs_cmd)
     if tdgs_exit_code != 0:
         CONSOLE.print(f"Error: 3dgs failed with code {tdgs_exit_code}. Exiting.")
@@ -450,6 +451,7 @@ def render_task(
             ref_sr_cmd += f"--on_the_fly_video_dir {render_path} "
             ref_sr_cmd += f"--out_dir_name output"
 
+            CONSOLE.print(f"Excuting RefSR: {ref_sr_cmd}")
             ref_sr_exit_code = os.system(ref_sr_cmd)
             if ref_sr_exit_code != 0:
                 CONSOLE.print(f"Error: ref_sr failed with code {ref_sr_exit_code}. Exiting.")
