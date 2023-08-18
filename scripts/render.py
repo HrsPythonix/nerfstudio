@@ -827,6 +827,8 @@ class RenderTrajectory:
                 self.post_sr,
                 ref_sr=self.ref_sr,
                 use_3dgs=self.use_3dgs,
+                model_3dgs=self.model_3dgs,
+                data_3dgs=self.data_3dgs,
                 init_colmap_ori_dir=init_colmap_ori_dir,
                 scale_width=self.scale_width,
                 scale_height=self.scale_height,
