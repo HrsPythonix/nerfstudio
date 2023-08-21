@@ -347,6 +347,7 @@ xmlns:GSpherical='http://ns.google.com/videos/1.0/spherical/'>
             mp4file.close()
 
 def render_task_by_3dgs(cameras: Cameras, save_list: List[str], model_3dgs: str, data_3dgs: str):
+    os.environ['MKL_THREADING_LAYER'] = 'GNU'
     nsc = nerfstudio_to_colmap_coord(os.path.join(data_3dgs, "dataparser_transforms.json"))
     pose_info = nsc.on_the_fly_json_to_colmap_json(cameras, save_list)
 
