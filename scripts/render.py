@@ -533,7 +533,7 @@ def start_server(
 ):
     json_postfix = "*.json"
     last_task = ""
-    device = pipeline.datamanager.train_image_dataloader.device if pipeline is not None else "cpu"
+    device = "cuda" if pipeline is not None else "cpu"
     while True:
         time.sleep(query_interval)
 
@@ -724,7 +724,7 @@ class RenderTrajectory:
             _config, pipeline, _ = eval_setup(
                 self.load_config,
                 eval_num_rays_per_chunk=self.eval_num_rays_per_chunk,
-                test_mode="test" if self.traj == "spiral" or "circle" or "interpolate" else "inference",
+                test_mode="test" if (self.traj == "spiral" or self.traj == "circle" or self.traj == "interpolate") else "inference",
             )
         else:
             _config, pipeline = None, None
