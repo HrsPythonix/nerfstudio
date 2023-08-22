@@ -724,7 +724,7 @@ class RenderTrajectory:
             _config, pipeline, _ = eval_setup(
                 self.load_config,
                 eval_num_rays_per_chunk=self.eval_num_rays_per_chunk,
-                test_mode="test" if self.traj == "spiral" or "circle" or "server" or "interpolate" else "inference",
+                test_mode="test" if self.traj == "spiral" or "circle" or "interpolate" else "inference",
             )
         else:
             _config, pipeline = None, None
