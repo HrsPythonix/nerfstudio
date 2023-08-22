@@ -729,7 +729,7 @@ class RenderTrajectory:
         else:
             _config, pipeline = None, None
             if self.model_3dgs == "/mnt/datadisk0/risheng/NS_data/outputs":
-                self.model_3dgs = os.path.join(os.listdir(self.model_3dgs)[0])
+                self.model_3dgs = os.path.join(self.model_3dgs, os.listdir(self.model_3dgs)[0])
 
         if self.traj != "server":
             install_checks.check_ffmpeg_installed()
