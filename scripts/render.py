@@ -446,7 +446,7 @@ def render_task(
                 json.dump(camera_paths_info, f)
             
             ref_sr_output_dir = os.path.join(ref_sr_work_dir, "output")
-            ref_sr_cmd = "/home/user/MRefSR/anaconda3/envs/mmlab113/bin/python3 /home/user/MRefSR/MRefSRLXK/ss_one_folder_MRefSR.py "
+            ref_sr_cmd = "/opt/conda/envs/mmlab113/bin/python /home/user/MRefSR/ss_one_folder_MRefSR.py "
             ref_sr_cmd += f"--work_dir {ref_sr_work_dir} "
             ref_sr_cmd += f"--init_colmap_ori_dir {init_colmap_ori_dir} "
             ref_sr_cmd += f"--on_the_fly_video_dir {render_path} "
