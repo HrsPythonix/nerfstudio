@@ -716,7 +716,7 @@ class RenderTrajectory:
     # use 3d gs to render
     use_3dgs: bool = False
     model_3dgs: str = "/mnt/datadisk0/risheng/NS_data/outputs"
-    data_3dgs: str = "/mnt/datadisk0/risheng/NS_data/nerf_data"
+    data_3dgs: str = "/mnt/datadisk0/risheng/NS_data/data/nerf_data"
 
     def main(self) -> None:
         """Main function."""
